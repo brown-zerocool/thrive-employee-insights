@@ -1,14 +1,32 @@
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  const handleLogout = (e: React.MouseEvent) => {
+    e.preventDefault();
+    logout();
+  };
+
+  const handleLogin = () => {
+    navigate("/login");
+    setIsMenuOpen(false);
+  };
+
+  const handleSignup = () => {
+    navigate("/signup");
+    setIsMenuOpen(false);
   };
 
   return (
@@ -40,21 +58,32 @@ const Navbar = () => {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-8">
-          <Link to="/dashboard" className="text-gray-700 hover:text-thrive-600 transition-colors">
-            Dashboard
-          </Link>
-          <Link to="/employees" className="text-gray-700 hover:text-thrive-600 transition-colors">
-            Employees
-          </Link>
-          <Link to="/upload" className="text-gray-700 hover:text-thrive-600 transition-colors">
-            Upload Data
-          </Link>
-          <Link to="/login">
-            <Button variant="outline" className="mr-2">Login</Button>
-          </Link>
-          <Link to="/signup">
-            <Button>Sign Up</Button>
-          </Link>
+          {isAuthenticated ? (
+            <>
+              <Link to="/dashboard" className="text-gray-700 hover:text-thrive-600 transition-colors">
+                Dashboard
+              </Link>
+              <Link to="/employees" className="text-gray-700 hover:text-thrive-600 transition-colors">
+                Employees
+              </Link>
+              <Link to="/upload" className="text-gray-700 hover:text-thrive-600 transition-colors">
+                Upload Data
+              </Link>
+              <Button variant="outline" className="flex items-center gap-2" onClick={handleLogout}>
+                <LogOut className="h-4 w-4" />
+                Logout
+              </Button>
+            </>
+          ) : (
+            <>
+              <Link to="/login">
+                <Button variant="outline" className="mr-2">Login</Button>
+              </Link>
+              <Link to="/signup">
+                <Button>Sign Up</Button>
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -69,35 +98,48 @@ const Navbar = () => {
       {isMenuOpen && (
         <div className="md:hidden absolute top-16 left-0 right-0 bg-white shadow-md z-50 animate-fade-in">
           <div className="flex flex-col py-4 px-6 space-y-4">
-            <Link 
-              to="/dashboard" 
-              className="text-gray-700 hover:text-thrive-600 transition-colors py-2"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Dashboard
-            </Link>
-            <Link 
-              to="/employees" 
-              className="text-gray-700 hover:text-thrive-600 transition-colors py-2"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Employees
-            </Link>
-            <Link 
-              to="/upload" 
-              className="text-gray-700 hover:text-thrive-600 transition-colors py-2"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Upload Data
-            </Link>
-            <div className="flex flex-col space-y-2 pt-2">
-              <Link to="/login" onClick={() => setIsMenuOpen(false)}>
-                <Button variant="outline" className="w-full">Login</Button>
-              </Link>
-              <Link to="/signup" onClick={() => setIsMenuOpen(false)}>
-                <Button className="w-full">Sign Up</Button>
-              </Link>
-            </div>
+            {isAuthenticated ? (
+              <>
+                <Link 
+                  to="/dashboard" 
+                  className="text-gray-700 hover:text-thrive-600 transition-colors py-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Dashboard
+                </Link>
+                <Link 
+                  to="/employees" 
+                  className="text-gray-700 hover:text-thrive-600 transition-colors py-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Employees
+                </Link>
+                <Link 
+                  to="/upload" 
+                  className="text-gray-700 hover:text-thrive-600 transition-colors py-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Upload Data
+                </Link>
+                <Button 
+                  variant="outline" 
+                  className="flex items-center gap-2 w-full" 
+                  onClick={handleLogout}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <div className="flex flex-col space-y-2 pt-2">
+                <Button variant="outline" className="w-full" onClick={handleLogin}>
+                  Login
+                </Button>
+                <Button className="w-full" onClick={handleSignup}>
+                  Sign Up
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -1,369 +1,348 @@
 
 import { useState } from "react";
-import Navbar from "@/components/Navbar";
-import EmployeeTable from "@/components/EmployeeTable";
-import RiskBadge from "@/components/RiskBadge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  BarChart,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, UserCheck, UserX, Users, Briefcase, LineChart, BarChart } from "lucide-react";
+import {
+  AlertCircle,
+  Briefcase,
+  Calendar,
+  ChevronDown,
+  Clock,
+  Download,
+  MoreHorizontal,
+  Sparkles,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  Users,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import RiskBadge from "@/components/RiskBadge";
+import { useAuth } from "@/hooks/useAuth";
+
+// Mocked data for the dashboard
+const totalEmployees = 244;
+const atRiskEmployees = 32;
+const retentionRate = 87;
+
+const recentEmployees = [
+  {
+    id: 1,
+    name: "Alex Johnson",
+    role: "Senior Developer",
+    department: "Engineering",
+    retentionScore: 78,
+    riskLevel: "low" as const,
+  },
+  {
+    id: 2,
+    name: "Maria Garcia",
+    role: "Product Manager",
+    department: "Product",
+    retentionScore: 45,
+    riskLevel: "medium" as const,
+  },
+  {
+    id: 3,
+    name: "David Kim",
+    role: "UI/UX Designer",
+    department: "Design",
+    retentionScore: 38,
+    riskLevel: "high" as const,
+  },
+  {
+    id: 4,
+    name: "Sarah Wilson",
+    role: "Marketing Specialist",
+    department: "Marketing",
+    retentionScore: 56,
+    riskLevel: "medium" as const,
+  },
+  {
+    id: 5,
+    name: "James Taylor",
+    role: "Customer Support",
+    department: "Operations",
+    retentionScore: 82,
+    riskLevel: "low" as const,
+  },
+];
+
+// Mocked retention strategies
+const retentionStrategies = [
+  {
+    employee: "Maria Garcia",
+    strategy: "Schedule a one-on-one meeting to discuss career growth opportunities within the company.",
+  },
+  {
+    employee: "David Kim",
+    strategy: "Consider a compensation adjustment as his current salary is below market rate for his experience level.",
+  },
+  {
+    employee: "Sarah Wilson",
+    strategy: "Offer additional training and mentorship to help develop skills in her area of interest.",
+  },
+];
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
+  const { user, logout } = useAuth();
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <Navbar />
-
-      <main className="flex-1 container mx-auto px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-          <p className="text-gray-600">
-            Monitor employee retention metrics and identify at-risk employees.
-          </p>
+    <div className="flex min-h-screen flex-col">
+      <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-6">
+        <div className="flex items-center gap-2">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-thrive-600"
+          >
+            <path d="M16 16h6"></path>
+            <path d="M21 10V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h7"></path>
+            <path d="M12 4v4"></path>
+            <path d="M9 4v1"></path>
+            <path d="M15 4v1"></path>
+            <path d="M16 19h6"></path>
+            <path d="M19 16v6"></path>
+          </svg>
+          <span className="text-lg font-semibold text-thrive-600">Thrive</span>
         </div>
-
-        <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <div className="flex justify-between items-center">
-            <TabsList className="grid grid-cols-2 md:grid-cols-4 w-full md:w-auto">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="employees">Employees</TabsTrigger>
-              <TabsTrigger value="departments">Departments</TabsTrigger>
-              <TabsTrigger value="trends">Trends</TabsTrigger>
-            </TabsList>
+        <div className="ml-auto flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full"
+            aria-label="Settings"
+          >
+            <Sparkles className="h-5 w-5" />
+            <span className="sr-only">Settings</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full"
+            aria-label="Notifications"
+          >
+            <AlertCircle className="h-5 w-5" />
+            <span className="sr-only">Notifications</span>
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="flex items-center gap-2">
+                <span className="hidden md:inline-block">
+                  {user?.email || "User"}
+                </span>
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => {}}>Profile</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {}}>Settings</DropdownMenuItem>
+              <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+      <div className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-8 md:gap-8">
+        <div className="grid auto-rows-max gap-4 md:gap-8">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                Dashboard
+              </h1>
+              <p className="text-gray-500">
+                Monitor employee retention metrics and predictions
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm">
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="default" size="sm">
+                    <span>New</span>
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem>Add Employee</DropdownMenuItem>
+                  <DropdownMenuItem>Upload Data</DropdownMenuItem>
+                  <DropdownMenuItem>Generate Report</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-
-          <TabsContent value="overview" className="space-y-6">
-            {/* Overview Stats */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Total Employees
-                  </CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">158</div>
-                  <p className="text-xs text-muted-foreground">
-                    +12 from last month
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">At Risk Employees</CardTitle>
-                  <UserX className="h-4 w-4 text-risk-high" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">24</div>
-                  <div className="flex items-center">
+          <Tabs
+            defaultValue="overview"
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="space-y-4"
+          >
+            <TabsList>
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              <TabsTrigger value="reports">Reports</TabsTrigger>
+              <TabsTrigger value="notifications">Notifications</TabsTrigger>
+            </TabsList>
+            <TabsContent value="overview" className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Total Employees
+                    </CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{totalEmployees}</div>
                     <p className="text-xs text-muted-foreground">
-                      15.2% of workforce
+                      +3 since last month
                     </p>
-                    <RiskBadge risk="high" className="ml-2" />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Retention Rate</CardTitle>
-                  <UserCheck className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">87.5%</div>
-                  <p className="text-xs text-risk-low">
-                    +2.1% from last quarter
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Average Satisfaction</CardTitle>
-                  <Activity className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">3.8/5</div>
-                  <p className="text-xs text-risk-medium">
-                    -0.2 from last quarter
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Risk Distribution */}
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card className="col-span-1">
-                <CardHeader>
-                  <CardTitle>Risk Distribution</CardTitle>
-                  <CardDescription>Employee breakdown by risk level</CardDescription>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div className="space-y-8">
-                    <div className="space-y-2">
-                      <div className="flex items-center">
-                        <div className="w-16 text-sm font-medium">High Risk</div>
-                        <div className="flex-1">
-                          <div className="flex items-center">
-                            <div className="h-2 w-full rounded-full bg-gray-200">
-                              <div className="h-2 rounded-full bg-risk-high" style={{ width: "15%" }}></div>
-                            </div>
-                            <span className="ml-2 text-sm font-medium">24</span>
-                          </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      At-Risk Employees
+                    </CardTitle>
+                    <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{atRiskEmployees}</div>
+                    <p className="text-xs text-muted-foreground">
+                      13% of workforce
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Retention Rate
+                    </CardTitle>
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{retentionRate}%</div>
+                    <p className="text-xs text-muted-foreground">
+                      +2% from previous quarter
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+                <Card className="col-span-4">
+                  <CardHeader>
+                    <CardTitle>Recent Employees</CardTitle>
+                    <CardDescription>
+                      Viewing {recentEmployees.length} employees with their
+                      retention scores
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Department</TableHead>
+                          <TableHead>Retention Score</TableHead>
+                          <TableHead>Risk Level</TableHead>
+                          <TableHead></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {recentEmployees.map((employee) => (
+                          <TableRow key={employee.id}>
+                            <TableCell className="font-medium">
+                              {employee.name}
+                            </TableCell>
+                            <TableCell>{employee.role}</TableCell>
+                            <TableCell>{employee.department}</TableCell>
+                            <TableCell>{employee.retentionScore}%</TableCell>
+                            <TableCell>
+                              <RiskBadge risk={employee.riskLevel} />
+                            </TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <span className="sr-only">Open menu</span>
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem>View details</DropdownMenuItem>
+                                  <DropdownMenuItem>Edit</DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+                <Card className="col-span-3">
+                  <CardHeader>
+                    <CardTitle>Retention Insights</CardTitle>
+                    <CardDescription>
+                      AI-generated strategies to improve retention
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {retentionStrategies.map((strategy, index) => (
+                      <div key={index} className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-thrive-600" />
+                          <h3 className="font-semibold">{strategy.employee}</h3>
                         </div>
+                        <p className="text-sm text-muted-foreground">
+                          {strategy.strategy}
+                        </p>
                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center">
-                        <div className="w-16 text-sm font-medium">Medium Risk</div>
-                        <div className="flex-1">
-                          <div className="flex items-center">
-                            <div className="h-2 w-full rounded-full bg-gray-200">
-                              <div className="h-2 rounded-full bg-risk-medium" style={{ width: "27%" }}></div>
-                            </div>
-                            <span className="ml-2 text-sm font-medium">43</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center">
-                        <div className="w-16 text-sm font-medium">Low Risk</div>
-                        <div className="flex-1">
-                          <div className="flex items-center">
-                            <div className="h-2 w-full rounded-full bg-gray-200">
-                              <div className="h-2 rounded-full bg-risk-low" style={{ width: "58%" }}></div>
-                            </div>
-                            <span className="ml-2 text-sm font-medium">91</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="col-span-1">
-                <CardHeader>
-                  <CardTitle>Retention Insights</CardTitle>
-                  <CardDescription>AI-generated suggestions based on employee data</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                      <div className="flex items-start gap-3">
-                        <div className="h-8 w-8 rounded-full bg-thrive-100 flex items-center justify-center">
-                          <Brain className="h-4 w-4 text-thrive-700" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-sm">Engineering Team Risk</h4>
-                          <p className="text-sm text-gray-600 mt-1">
-                            The Engineering department shows a 23% higher turnover risk than other departments, with salary satisfaction being the primary factor.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                      <div className="flex items-start gap-3">
-                        <div className="h-8 w-8 rounded-full bg-thrive-100 flex items-center justify-center">
-                          <Brain className="h-4 w-4 text-thrive-700" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-sm">Senior Developer Retention</h4>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Consider providing more growth opportunities for senior developers. Employees with 3+ years experience mention career development in feedback.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                      <div className="flex items-start gap-3">
-                        <div className="h-8 w-8 rounded-full bg-thrive-100 flex items-center justify-center">
-                          <Brain className="h-4 w-4 text-thrive-700" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-sm">Work-Life Balance</h4>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Recent survey results indicate work-life balance concerns across all departments. Consider reviewing workload distribution.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Top At-Risk Employees */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Top At-Risk Employees</CardTitle>
-                <CardDescription>Employees with highest likelihood of leaving</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <EmployeeTable />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="employees">
-            <Card>
-              <CardHeader>
-                <CardTitle>All Employees</CardTitle>
-                <CardDescription>View and manage employee retention data</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <EmployeeTable />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="departments">
-            <Card>
-              <CardHeader>
-                <CardTitle>Department Analysis</CardTitle>
-                <CardDescription>Retention metrics broken down by department</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-8">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <Briefcase className="h-5 w-5 mr-2 text-gray-500" />
-                        <span className="font-medium">Engineering</span>
-                      </div>
-                      <span className="text-sm font-medium">
-                        <RiskBadge risk="high" />
-                      </span>
-                    </div>
-                    <div className="h-2 w-full rounded-full bg-gray-200">
-                      <div className="h-2 rounded-full bg-risk-high" style={{ width: "67%" }}></div>
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>42 employees</span>
-                      <span>67% average retention score</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <Briefcase className="h-5 w-5 mr-2 text-gray-500" />
-                        <span className="font-medium">Sales</span>
-                      </div>
-                      <span className="text-sm font-medium">
-                        <RiskBadge risk="medium" />
-                      </span>
-                    </div>
-                    <div className="h-2 w-full rounded-full bg-gray-200">
-                      <div className="h-2 rounded-full bg-risk-medium" style={{ width: "74%" }}></div>
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>28 employees</span>
-                      <span>74% average retention score</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <Briefcase className="h-5 w-5 mr-2 text-gray-500" />
-                        <span className="font-medium">Marketing</span>
-                      </div>
-                      <span className="text-sm font-medium">
-                        <RiskBadge risk="low" />
-                      </span>
-                    </div>
-                    <div className="h-2 w-full rounded-full bg-gray-200">
-                      <div className="h-2 rounded-full bg-risk-low" style={{ width: "86%" }}></div>
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>24 employees</span>
-                      <span>86% average retention score</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <Briefcase className="h-5 w-5 mr-2 text-gray-500" />
-                        <span className="font-medium">HR</span>
-                      </div>
-                      <span className="text-sm font-medium">
-                        <RiskBadge risk="low" />
-                      </span>
-                    </div>
-                    <div className="h-2 w-full rounded-full bg-gray-200">
-                      <div className="h-2 rounded-full bg-risk-low" style={{ width: "92%" }}></div>
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>12 employees</span>
-                      <span>92% average retention score</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <Briefcase className="h-5 w-5 mr-2 text-gray-500" />
-                        <span className="font-medium">Finance</span>
-                      </div>
-                      <span className="text-sm font-medium">
-                        <RiskBadge risk="medium" />
-                      </span>
-                    </div>
-                    <div className="h-2 w-full rounded-full bg-gray-200">
-                      <div className="h-2 rounded-full bg-risk-medium" style={{ width: "78%" }}></div>
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>18 employees</span>
-                      <span>78% average retention score</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="trends">
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <div>
-                    <CardTitle>Retention Over Time</CardTitle>
-                    <CardDescription>Quarterly retention rates</CardDescription>
-                  </div>
-                  <LineChart className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="h-[300px] flex items-center justify-center bg-muted/20 rounded-md">
-                    <p className="text-muted-foreground">Retention trend chart will appear here</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <div>
-                    <CardTitle>Satisfaction Factors</CardTitle>
-                    <CardDescription>Key drivers of employee satisfaction</CardDescription>
-                  </div>
-                  <BarChart className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="h-[300px] flex items-center justify-center bg-muted/20 rounded-md">
-                    <p className="text-muted-foreground">Satisfaction factors chart will appear here</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </main>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
     </div>
   );
 };
