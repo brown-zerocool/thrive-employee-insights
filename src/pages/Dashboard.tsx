@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Card,
@@ -11,17 +10,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertCircle,
   BarChart3,
-  Briefcase,
   Calendar,
   ChevronDown,
-  Clock,
   Download,
   MoreHorizontal,
   Sparkles,
-  Trash2,
-  TrendingDown,
   TrendingUp,
   Users,
+  Upload,
+  FileText,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   Table,
@@ -39,11 +38,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import RiskBadge from "@/components/RiskBadge";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
+import { handleExport } from "@/utils/exportUtils";
+import NewEmployeeModal from "@/components/NewEmployeeModal";
+import DataImportModal from "@/components/DataImportModal";
+import { toast } from "sonner";
 
-// Mocked data for the dashboard
 const totalEmployees = 244;
 const atRiskEmployees = 32;
 const retentionRate = 87;
@@ -91,7 +94,6 @@ const recentEmployees = [
   },
 ];
 
-// Mocked retention strategies
 const retentionStrategies = [
   {
     employee: "Maria Garcia",
@@ -110,8 +112,9 @@ const retentionStrategies = [
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const { user, logout } = useAuth();
+  const [showNewEmployeeModal, setShowNewEmployeeModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
-  // Sample chart data for Analytics tab
   const departmentDistribution = [
     { name: "Engineering", value: 48 },
     { name: "Marketing", value: 21 },
@@ -120,6 +123,14 @@ const Dashboard = () => {
     { name: "Design", value: 16 },
     { name: "HR", value: 12 },
   ];
+
+  const handleDataImport = () => {
+    setShowImportModal(true);
+  };
+
+  const handleGenerateReport = () => {
+    toast.success("Report generation started. This may take a few moments.");
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -196,25 +207,62 @@ const Dashboard = () => {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                <Download className="mr-2 h-4 w-4" />
-                Export
-              </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-48">
+                  <div className="flex flex-col space-y-1">
+                    <Button 
+                      variant="ghost" 
+                      className="justify-start" 
+                      onClick={() => handleExport("csv")}
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      Export as CSV
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      className="justify-start" 
+                      onClick={() => handleExport("pdf")}
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      Export as PDF
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="default" size="sm">
+                    <Plus className="mr-2 h-4 w-4" />
                     <span>New</span>
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem>Add Employee</DropdownMenuItem>
-                  <DropdownMenuItem>Upload Data</DropdownMenuItem>
-                  <DropdownMenuItem>Generate Report</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowNewEmployeeModal(true)}>
+                    <Users className="mr-2 h-4 w-4" />
+                    Add Employee
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDataImport}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload Data
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleGenerateReport}>
+                    <BarChart3 className="mr-2 h-4 w-4" />
+                    Generate Report
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
+          
           <Tabs
             defaultValue="overview"
             value={activeTab}
@@ -528,6 +576,15 @@ const Dashboard = () => {
           </Tabs>
         </div>
       </div>
+      
+      <NewEmployeeModal 
+        open={showNewEmployeeModal} 
+        onOpenChange={setShowNewEmployeeModal} 
+      />
+      <DataImportModal
+        open={showImportModal}
+        onOpenChange={setShowImportModal}
+      />
     </div>
   );
 };
