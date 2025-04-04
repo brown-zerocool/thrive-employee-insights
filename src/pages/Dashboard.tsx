@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   Card,
@@ -16,8 +17,8 @@ import {
   MoreHorizontal,
   Sparkles,
   TrendingUp,
-  Users,
   Upload,
+  Users,
   FileText,
   Plus,
 } from "lucide-react";
@@ -42,57 +43,17 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import RiskBadge from "@/components/RiskBadge";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
-import { handleExport } from "@/utils/exportUtils";
+import { handleExport, recentEmployees } from "@/utils/exportUtils";
 import NewEmployeeModal from "@/components/NewEmployeeModal";
 import DataImportModal from "@/components/DataImportModal";
 import { toast } from "sonner";
+import AnalyticsTab from "@/components/dashboard/AnalyticsTab";
+import ReportsTab from "@/components/dashboard/ReportsTab";
+import NotificationsTab from "@/components/dashboard/NotificationsTab";
 
 const totalEmployees = 244;
 const atRiskEmployees = 32;
 const retentionRate = 87;
-
-const recentEmployees = [
-  {
-    id: 1,
-    name: "Alex Johnson",
-    role: "Senior Developer",
-    department: "Engineering",
-    retentionScore: 78,
-    riskLevel: "low" as const,
-  },
-  {
-    id: 2,
-    name: "Maria Garcia",
-    role: "Product Manager",
-    department: "Product",
-    retentionScore: 45,
-    riskLevel: "medium" as const,
-  },
-  {
-    id: 3,
-    name: "David Kim",
-    role: "UI/UX Designer",
-    department: "Design",
-    retentionScore: 38,
-    riskLevel: "high" as const,
-  },
-  {
-    id: 4,
-    name: "Sarah Wilson",
-    role: "Marketing Specialist",
-    department: "Marketing",
-    retentionScore: 56,
-    riskLevel: "medium" as const,
-  },
-  {
-    id: 5,
-    name: "James Taylor",
-    role: "Customer Support",
-    department: "Operations",
-    retentionScore: 82,
-    riskLevel: "low" as const,
-  },
-];
 
 const retentionStrategies = [
   {
@@ -115,21 +76,20 @@ const Dashboard = () => {
   const [showNewEmployeeModal, setShowNewEmployeeModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
 
-  const departmentDistribution = [
-    { name: "Engineering", value: 48 },
-    { name: "Marketing", value: 21 },
-    { name: "Sales", value: 35 },
-    { name: "Operations", value: 19 },
-    { name: "Design", value: 16 },
-    { name: "HR", value: 12 },
-  ];
-
   const handleDataImport = () => {
     setShowImportModal(true);
   };
 
   const handleGenerateReport = () => {
     toast.success("Report generation started. This may take a few moments.");
+    
+    // Simulate report generation
+    setTimeout(() => {
+      toast.success("Report generated successfully", {
+        description: "Your report is now available in the Reports tab"
+      });
+      setActiveTab("reports");
+    }, 3000);
   };
 
   return (
@@ -173,6 +133,7 @@ const Dashboard = () => {
             size="icon"
             className="rounded-full"
             aria-label="Notifications"
+            onClick={() => setActiveTab("notifications")}
           >
             <AlertCircle className="h-5 w-5" />
             <span className="sr-only">Notifications</span>
@@ -231,6 +192,14 @@ const Dashboard = () => {
                     >
                       <FileText className="mr-2 h-4 w-4" />
                       Export as PDF
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      className="justify-start" 
+                      onClick={() => handleExport("excel")}
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      Export as Excel
                     </Button>
                   </div>
                 </PopoverContent>
@@ -405,173 +374,15 @@ const Dashboard = () => {
             </TabsContent>
             
             <TabsContent value="analytics" className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card className="col-span-2">
-                  <CardHeader>
-                    <CardTitle>Department Distribution</CardTitle>
-                    <CardDescription>
-                      Employee distribution across departments
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="px-2">
-                    <div className="h-80">
-                      {departmentDistribution.map((item, index) => (
-                        <div key={index} className="mb-4">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium">{item.name}</span>
-                            <span className="text-sm text-muted-foreground">{item.value}</span>
-                          </div>
-                          <div className="w-full bg-muted rounded-full h-2.5">
-                            <div 
-                              className="bg-primary h-2.5 rounded-full" 
-                              style={{ width: `${(item.value / totalEmployees) * 100}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Risk Distribution</CardTitle>
-                    <CardDescription>
-                      Employee risk level breakdown
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-6">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Low Risk</span>
-                          <span className="text-sm text-muted-foreground">68%</span>
-                        </div>
-                        <div className="w-full bg-muted rounded-full h-2.5">
-                          <div className="bg-risk-low h-2.5 rounded-full" style={{ width: "68%" }}></div>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Medium Risk</span>
-                          <span className="text-sm text-muted-foreground">19%</span>
-                        </div>
-                        <div className="w-full bg-muted rounded-full h-2.5">
-                          <div className="bg-risk-medium h-2.5 rounded-full" style={{ width: "19%" }}></div>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">High Risk</span>
-                          <span className="text-sm text-muted-foreground">13%</span>
-                        </div>
-                        <div className="w-full bg-muted rounded-full h-2.5">
-                          <div className="bg-risk-high h-2.5 rounded-full" style={{ width: "13%" }}></div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              <AnalyticsTab />
             </TabsContent>
             
             <TabsContent value="reports" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Available Reports</CardTitle>
-                  <CardDescription>
-                    Download and manage retention reports
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <BarChart3 className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">Monthly Retention Report</p>
-                          <p className="text-sm text-muted-foreground">April 2025</p>
-                        </div>
-                      </div>
-                      <Button size="sm" variant="outline">
-                        <Download className="mr-2 h-4 w-4" />
-                        Download
-                      </Button>
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <BarChart3 className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">Quarterly Risk Analysis</p>
-                          <p className="text-sm text-muted-foreground">Q1 2025</p>
-                        </div>
-                      </div>
-                      <Button size="sm" variant="outline">
-                        <Download className="mr-2 h-4 w-4" />
-                        Download
-                      </Button>
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <BarChart3 className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">Department Comparison</p>
-                          <p className="text-sm text-muted-foreground">March 2025</p>
-                        </div>
-                      </div>
-                      <Button size="sm" variant="outline">
-                        <Download className="mr-2 h-4 w-4" />
-                        Download
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <ReportsTab />
             </TabsContent>
             
             <TabsContent value="notifications" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Notifications</CardTitle>
-                  <CardDescription>
-                    Stay updated on important retention events
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-4 p-4 border rounded-lg">
-                      <AlertCircle className="h-5 w-5 text-risk-high mt-0.5" />
-                      <div>
-                        <p className="font-medium">High Risk Alert</p>
-                        <p className="text-sm text-muted-foreground">David Kim's retention score has dropped below 40%. Consider immediate action.</p>
-                        <p className="text-xs text-muted-foreground mt-1">2 hours ago</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start gap-4 p-4 border rounded-lg">
-                      <Calendar className="h-5 w-5 text-blue-500 mt-0.5" />
-                      <div>
-                        <p className="font-medium">Scheduled Review</p>
-                        <p className="text-sm text-muted-foreground">Performance review for Maria Garcia is due next week.</p>
-                        <p className="text-xs text-muted-foreground mt-1">Yesterday</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start gap-4 p-4 border rounded-lg">
-                      <TrendingUp className="h-5 w-5 text-risk-low mt-0.5" />
-                      <div>
-                        <p className="font-medium">Improved Score</p>
-                        <p className="text-sm text-muted-foreground">James Taylor's retention score has improved by 15% this month.</p>
-                        <p className="text-xs text-muted-foreground mt-1">3 days ago</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <NotificationsTab />
             </TabsContent>
           </Tabs>
         </div>
