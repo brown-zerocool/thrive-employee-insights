@@ -19,6 +19,10 @@ const badgeVariants = cva(
         low: "border-transparent bg-risk-low text-white",
         medium: "border-transparent bg-risk-medium text-white",
         high: "border-transparent bg-risk-high text-white",
+        positive: "border-transparent bg-green-500 text-white",
+        neutral: "border-transparent bg-blue-500 text-white",
+        negative: "border-transparent bg-red-500 text-white",
+        prediction: "border-transparent bg-purple-600 text-white",
       },
     },
     defaultVariants: {

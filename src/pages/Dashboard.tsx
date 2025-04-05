@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   Card,
@@ -23,6 +24,7 @@ import {
   UserIcon,
   Settings,
   LogOut,
+  BrainCircuit,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,6 +56,7 @@ import ReportsTab from "@/components/dashboard/ReportsTab";
 import NotificationsTab from "@/components/dashboard/NotificationsTab";
 import UserProfileModal from "@/components/UserProfileModal";
 import SettingsModal from "@/components/SettingsModal";
+import RetentionPrediction from "@/components/RetentionPrediction";
 
 const totalEmployees = 244;
 const atRiskEmployees = 32;
@@ -294,6 +297,10 @@ const Dashboard = () => {
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              <TabsTrigger value="predictions" className="flex items-center gap-1">
+                <BrainCircuit className="h-4 w-4" />
+                Predictions
+              </TabsTrigger>
               <TabsTrigger value="reports">Reports</TabsTrigger>
               <TabsTrigger value="notifications">Notifications</TabsTrigger>
             </TabsList>
@@ -428,6 +435,10 @@ const Dashboard = () => {
             
             <TabsContent value="analytics" className="space-y-4">
               <AnalyticsTab />
+            </TabsContent>
+            
+            <TabsContent value="predictions" className="space-y-4">
+              <RetentionPrediction />
             </TabsContent>
             
             <TabsContent value="reports" className="space-y-4">
