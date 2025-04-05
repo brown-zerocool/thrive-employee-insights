@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Card,
@@ -10,8 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   BarChart3,
-  LineChart,
-  PieChart,
+  LineChart as LineChartIcon,
+  PieChart as PieChartIcon,
   RefreshCcw,
   Calendar,
   TrendingUp,
@@ -33,14 +32,14 @@ import {
   Area,
   BarChart,
   Bar,
-  LineChart as RechartsLineChart,
+  LineChart,
   Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart as RechartsPieChart,
+  PieChart,
   Pie,
   Cell,
   Legend,
@@ -50,7 +49,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
-// Sample data for additional charts
 const turnoverData = [
   { month: 'Jan', voluntary: 4, involuntary: 2 },
   { month: 'Feb', voluntary: 3, involuntary: 1 },
@@ -97,7 +95,6 @@ const AnalyticsTab = () => {
     setIsRefreshing(true);
     toast.info("Refreshing analytics data...");
     
-    // Simulate data refresh
     setTimeout(() => {
       setIsRefreshing(false);
       toast.success("Analytics data refreshed");
