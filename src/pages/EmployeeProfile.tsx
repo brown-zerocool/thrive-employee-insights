@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { Brain, CalendarDays, Mail, MapPin, Phone, UserCircle } from "lucide-react";
@@ -8,8 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import RiskBadge from "@/components/RiskBadge";
+import AiFeedbackAnalysis from "@/components/AiFeedbackAnalysis";
 
-// Sample employee data
 const employeeData = {
   id: 2,
   name: "Jamie Smith",
@@ -51,13 +50,12 @@ const employeeData = {
 
 const EmployeeProfile = () => {
   const { id } = useParams();
-  const [employee] = useState(employeeData); // In a real app, this would fetch based on the ID
+  const [employee] = useState(employeeData);
   const { toast } = useToast();
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
 
   const handleGenerateInsights = () => {
     setIsGeneratingInsights(true);
-    // Simulate API call to GPT-4o
     setTimeout(() => {
       setIsGeneratingInsights(false);
       toast({
@@ -67,7 +65,6 @@ const EmployeeProfile = () => {
     }, 2000);
   };
 
-  // Calculate tenure in years and months
   const calculateTenure = (startDate: string) => {
     const start = new Date(startDate);
     const today = new Date();
@@ -80,7 +77,6 @@ const EmployeeProfile = () => {
     return `${years} years, ${months} months`;
   };
 
-  // Format date to readable format
   const formatDate = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString(undefined, options);
@@ -99,7 +95,6 @@ const EmployeeProfile = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Employee Info */}
           <Card className="lg:col-span-1">
             <CardHeader className="pb-2">
               <CardTitle>Employee Information</CardTitle>
@@ -179,9 +174,7 @@ const EmployeeProfile = () => {
             </CardContent>
           </Card>
 
-          {/* Right Column - Analysis and Data */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Retention Score Card */}
             <Card>
               <CardHeader className="pb-2">
                 <div className="flex justify-between">
@@ -235,7 +228,6 @@ const EmployeeProfile = () => {
               </CardContent>
             </Card>
 
-            {/* Tabs for different data */}
             <Tabs defaultValue="performance" className="space-y-4">
               <TabsList className="grid grid-cols-3 w-full">
                 <TabsTrigger value="performance">Performance</TabsTrigger>
@@ -339,36 +331,7 @@ const EmployeeProfile = () => {
                         </div>
                       ))}
 
-                      <div className="p-4 bg-thrive-50 rounded-lg border border-thrive-100">
-                        <div className="flex items-start gap-3">
-                          <div className="h-8 w-8 rounded-full bg-thrive-100 flex items-center justify-center mt-1">
-                            <Brain className="h-4 w-4 text-thrive-700" />
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-sm">AI Sentiment Analysis</h4>
-                            <p className="text-sm text-gray-600 mt-2">
-                              Feedback shows consistent concerns about compensation and career growth. Key sentiment indicators suggest frustration (67%) and uncertainty (82%) about future at the company.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="p-4 bg-thrive-50 rounded-lg border border-thrive-100">
-                        <div className="flex items-start gap-3">
-                          <div className="h-8 w-8 rounded-full bg-thrive-100 flex items-center justify-center mt-1">
-                            <Brain className="h-4 w-4 text-thrive-700" />
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-sm">Recommended Actions</h4>
-                            <ul className="list-disc list-inside text-sm text-gray-600 mt-2 space-y-1">
-                              <li>Schedule a career development conversation within the next week</li>
-                              <li>Review compensation compared to market rates for similar roles</li>
-                              <li>Consider workload redistribution to improve work-life balance</li>
-                              <li>Explore potential for a role expansion or special project aligned with interests</li>
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
+                      <AiFeedbackAnalysis feedbacks={employee.feedbacks} />
                     </div>
                   </CardContent>
                 </Card>

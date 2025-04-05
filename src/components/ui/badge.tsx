@@ -23,6 +23,7 @@ const badgeVariants = cva(
         neutral: "border-transparent bg-blue-500 text-white",
         negative: "border-transparent bg-red-500 text-white",
         prediction: "border-transparent bg-purple-600 text-white",
+        "ai-generated": "border-transparent bg-gradient-to-r from-purple-600 to-indigo-600 text-white",
       },
     },
     defaultVariants: {

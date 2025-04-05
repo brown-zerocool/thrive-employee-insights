@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { generateRetentionPredictions } from "@/utils/openAiService";
 
 interface PredictionResult {
   employee: string;
@@ -39,6 +40,8 @@ const RetentionPrediction = () => {
   const [loading, setLoading] = useState(false);
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
   const [employeeSearch, setEmployeeSearch] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [config, setConfig] = useState<PredictionConfig>({
     timeFrame: "3m",
     includeFactors: {
@@ -49,55 +52,35 @@ const RetentionPrediction = () => {
     },
   });
 
-  // Sample predictions (in a real app, these would come from the OpenAI API)
-  const samplePredictions: PredictionResult[] = [
-    {
-      employee: "Maria Garcia",
-      score: 65,
-      risk: "medium",
-      reason: "3 consecutive missed team events, decreased collaboration in the last month, requested fewer training opportunities",
-      recommendation: "Schedule a one-on-one meeting to discuss career growth opportunities within the company.",
-    },
-    {
-      employee: "David Kim",
-      score: 48,
-      risk: "high",
-      reason: "Compensation below market rate for similar positions, increased workload in recent projects, reduced participation in meetings",
-      recommendation: "Consider a compensation adjustment as his current salary is below market rate for his experience level.",
-    },
-    {
-      employee: "Sarah Wilson",
-      score: 72,
-      risk: "medium",
-      reason: "Expressed interest in skills outside current role, mentored fewer junior staff recently, longer response times to communications",
-      recommendation: "Offer additional training and mentorship to help develop skills in her area of interest.",
-    },
-    {
-      employee: "Robert Johnson",
-      score: 88,
-      risk: "low",
-      reason: "Active participation in company events, regular knowledge sharing with team, positive feedback in recent performance review",
-      recommendation: "Maintain engagement through continued recognition and opportunities for professional growth.",
-    },
-    {
-      employee: "Emma Williams",
-      score: 42,
-      risk: "high",
-      reason: "Recent negative feedback about management style, decreased productivity, increased absence rate",
-      recommendation: "Immediate intervention needed. Schedule meeting with HR and consider reassigning to a different team or manager.",
+  const handleGeneratePredictions = async () => {
+    if (!apiKey && !showApiKeyInput) {
+      setShowApiKeyInput(true);
+      toast.info("Please enter your OpenAI API key to continue");
+      return;
     }
-  ];
 
-  const handleGeneratePredictions = () => {
     setLoading(true);
     toast.info("Analyzing employee data and generating predictions...");
     
-    // Simulate API call to OpenAI
-    setTimeout(() => {
-      setPredictions(samplePredictions);
+    try {
+      const results = await generateRetentionPredictions(apiKey, config);
+      
+      if (results && results.length > 0) {
+        setPredictions(results);
+        toast.success("Retention predictions generated successfully");
+      } else {
+        toast.error("Failed to generate predictions. Please check your API key and try again.");
+      }
+    } catch (error) {
+      console.error("Error generating predictions:", error);
+      toast.error("An error occurred while generating predictions");
+    } finally {
       setLoading(false);
-      toast.success("Retention predictions generated successfully");
-    }, 3000);
+    }
+  };
+
+  const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setApiKey(e.target.value);
   };
 
   const handleUpdateConfig = (key: keyof PredictionConfig, value: any) => {
@@ -131,10 +114,29 @@ const RetentionPrediction = () => {
                 <BrainCircuit className="h-5 w-5 text-purple-500" />
                 AI Retention Prediction
               </CardTitle>
-              <CardDescription>Use AI to identify employees at risk and get tailored retention strategies</CardDescription>
+              <CardDescription>Use GPT-4o to identify employees at risk and get tailored retention strategies</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                {showApiKeyInput && (
+                  <div className="space-y-2 mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <Label htmlFor="api-key" className="text-sm font-medium">
+                      OpenAI API Key
+                    </Label>
+                    <Input
+                      id="api-key"
+                      type="password"
+                      value={apiKey}
+                      onChange={handleApiKeyChange}
+                      placeholder="sk-..."
+                      className="font-mono text-sm"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Your API key is used only for this session and is not stored.
+                    </p>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="department">Department Filter</Label>
@@ -219,8 +221,20 @@ const RetentionPrediction = () => {
                   disabled={loading}
                 >
                   <Sparkles className="mr-2 h-4 w-4" />
-                  {loading ? "Generating Predictions..." : "Generate AI Predictions"}
+                  {loading ? "Generating Predictions..." : showApiKeyInput && !apiKey ? "Continue with API Key" : "Generate AI Predictions"}
                 </Button>
+
+                {!showApiKeyInput && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full mt-2"
+                    onClick={() => setShowApiKeyInput(true)}
+                  >
+                    <BrainCircuit className="mr-2 h-4 w-4" />
+                    Configure OpenAI API Key
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -232,7 +246,7 @@ const RetentionPrediction = () => {
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-center">
                   <CardTitle>Retention Predictions</CardTitle>
-                  <Badge variant="prediction">AI Generated</Badge>
+                  <Badge variant="ai-generated">GPT-4o Generated</Badge>
                 </div>
                 <CardDescription>
                   Based on {Object.values(config.includeFactors).filter(Boolean).length} 
@@ -287,7 +301,7 @@ const RetentionPrediction = () => {
                   <Badge variant="outline">Ready</Badge>
                 </div>
                 <CardDescription>
-                  Configure settings and generate predictions
+                  Configure settings and generate predictions with GPT-4o
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col items-center justify-center py-12 text-center space-y-4">
