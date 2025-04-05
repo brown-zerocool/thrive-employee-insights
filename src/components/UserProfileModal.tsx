@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Camera } from "lucide-react";
 
 interface UserProfileModalProps {
   open: boolean;
@@ -27,6 +29,9 @@ const UserProfileModal = ({ open, onOpenChange }: UserProfileModalProps) => {
     companyName: user?.companyName || "",
     role: user?.role || "",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -36,11 +41,40 @@ const UserProfileModal = ({ open, onOpenChange }: UserProfileModalProps) => {
     }));
   };
 
+  const handleImageClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setAvatarPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, you would update the user profile here
-    toast.success("Profile updated successfully");
-    onOpenChange(false);
+    setIsSubmitting(true);
+    
+    // Simulate API call
+    setTimeout(() => {
+      setIsSubmitting(false);
+      toast.success("Profile updated successfully");
+      onOpenChange(false);
+    }, 1000);
+  };
+
+  const getInitials = (name: string) => {
+    if (!name) return "U";
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+    }
+    return name.charAt(0).toUpperCase();
   };
 
   return (
@@ -55,10 +89,31 @@ const UserProfileModal = ({ open, onOpenChange }: UserProfileModalProps) => {
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="flex items-center justify-center mb-4">
-              <div className="h-24 w-24 rounded-full bg-thrive-600 text-white flex items-center justify-center text-3xl">
-                {user?.email ? user.email.charAt(0).toUpperCase() : "U"}
+              <div 
+                className="relative cursor-pointer group"
+                onClick={handleImageClick}
+              >
+                <Avatar className="h-24 w-24">
+                  {avatarPreview ? (
+                    <AvatarImage src={avatarPreview} alt={formData.name || "User"} />
+                  ) : null}
+                  <AvatarFallback className="bg-thrive-600 text-white text-3xl">
+                    {formData.name ? getInitials(formData.name) : "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 bg-black/20 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Camera className="h-6 w-6 text-white" />
+                </div>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  accept="image/*"
+                  onChange={handleFileChange}
+                />
               </div>
             </div>
+            
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="email" className="text-right">
                 Email
@@ -113,10 +168,24 @@ const UserProfileModal = ({ open, onOpenChange }: UserProfileModalProps) => {
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
-            <Button type="submit">Save Changes</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
