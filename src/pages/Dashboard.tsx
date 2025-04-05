@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Card,
@@ -21,6 +20,9 @@ import {
   Users,
   FileText,
   Plus,
+  UserIcon,
+  Settings,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,7 +44,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import RiskBadge from "@/components/RiskBadge";
 import { useAuth } from "@/hooks/useAuth";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { handleExport, recentEmployees } from "@/utils/exportUtils";
 import NewEmployeeModal from "@/components/NewEmployeeModal";
 import DataImportModal from "@/components/DataImportModal";
@@ -50,6 +52,8 @@ import { toast } from "sonner";
 import AnalyticsTab from "@/components/dashboard/AnalyticsTab";
 import ReportsTab from "@/components/dashboard/ReportsTab";
 import NotificationsTab from "@/components/dashboard/NotificationsTab";
+import UserProfileModal from "@/components/UserProfileModal";
+import SettingsModal from "@/components/SettingsModal";
 
 const totalEmployees = 244;
 const atRiskEmployees = 32;
@@ -75,6 +79,9 @@ const Dashboard = () => {
   const { user, logout } = useAuth();
   const [showNewEmployeeModal, setShowNewEmployeeModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const navigate = useNavigate();
 
   const handleDataImport = () => {
     setShowImportModal(true);
@@ -90,6 +97,27 @@ const Dashboard = () => {
       });
       setActiveTab("reports");
     }, 3000);
+  };
+
+  const handleProfileClick = () => {
+    setShowProfileModal(true);
+  };
+
+  const handleSettingsClick = () => {
+    setShowSettingsModal(true);
+  };
+
+  const handleLogout = () => {
+    toast.success("Logging out...");
+    setTimeout(() => {
+      logout();
+      navigate("/login");
+    }, 1000);
+  };
+
+  const getUserInitials = () => {
+    if (!user?.email) return "U";
+    return user.email.charAt(0).toUpperCase();
   };
 
   return (
@@ -124,6 +152,7 @@ const Dashboard = () => {
             size="icon"
             className="rounded-full"
             aria-label="Settings"
+            onClick={handleSettingsClick}
           >
             <Sparkles className="h-5 w-5" />
             <span className="sr-only">Settings</span>
@@ -131,31 +160,55 @@ const Dashboard = () => {
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full"
+            className="rounded-full relative"
             aria-label="Notifications"
             onClick={() => setActiveTab("notifications")}
           >
             <AlertCircle className="h-5 w-5" />
+            <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500"></span>
             <span className="sr-only">Notifications</span>
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-thrive-600 text-white flex items-center justify-center">
+                  {getUserInitials()}
+                </div>
                 <span className="hidden md:inline-block">
                   {user?.email || "User"}
                 </span>
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => {}}>Profile</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {}}>Settings</DropdownMenuItem>
-              <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="flex items-center justify-start gap-2 p-2">
+                <div className="h-10 w-10 rounded-full bg-thrive-600 text-white flex items-center justify-center text-lg">
+                  {getUserInitials()}
+                </div>
+                <div className="flex flex-col">
+                  <p className="text-sm font-medium">{user?.email}</p>
+                  <p className="text-xs text-muted-foreground">{user?.role || 'User'}</p>
+                </div>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleProfileClick} className="cursor-pointer">
+                <UserIcon className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSettingsClick} className="cursor-pointer">
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Logout</span>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </header>
+      
       <div className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-8 md:gap-8">
         <div className="grid auto-rows-max gap-4 md:gap-8">
           <div className="flex items-center justify-between">
@@ -395,6 +448,14 @@ const Dashboard = () => {
       <DataImportModal
         open={showImportModal}
         onOpenChange={setShowImportModal}
+      />
+      <UserProfileModal
+        open={showProfileModal}
+        onOpenChange={setShowProfileModal}
+      />
+      <SettingsModal
+        open={showSettingsModal}
+        onOpenChange={setShowSettingsModal}
       />
     </div>
   );

@@ -5,9 +5,11 @@ import { useToast } from "@/hooks/use-toast";
 
 interface User {
   email: string;
+  name?: string;
   companyName?: string;
   role?: string;
   isLoggedIn: boolean;
+  avatar?: string;
 }
 
 interface AuthContextType {
@@ -15,6 +17,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, companyName: string, role: string) => Promise<void>;
   logout: () => void;
+  updateUserProfile: (userData: Partial<User>) => void;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
@@ -42,14 +45,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(false);
   }, []);
 
+  const updateUserProfile = (userData: Partial<User>) => {
+    if (!user) return;
+    
+    const updatedUser = { ...user, ...userData };
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+    setUser(updatedUser);
+    
+    toast({
+      title: "Profile updated",
+      description: "Your profile has been successfully updated.",
+    });
+  };
+
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
       // This is a placeholder for actual authentication logic
       // In a real app, you would make an API request to authenticate
       
-      // Simulate a successful login
-      const userData = { email, isLoggedIn: true };
+      // Simulate a successful login with more user data
+      const userData = { 
+        email, 
+        name: email.split('@')[0],
+        role: "HR Manager",
+        companyName: "Thrive Inc.",
+        isLoggedIn: true 
+      };
+      
       localStorage.setItem("user", JSON.stringify(userData));
       setUser(userData);
       
@@ -78,7 +101,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // In a real app, you would make an API request to create a user
       
       // Simulate a successful signup
-      const userData = { email, companyName, role, isLoggedIn: true };
+      const userData = { 
+        email, 
+        companyName, 
+        role, 
+        name: email.split('@')[0],
+        isLoggedIn: true 
+      };
+      
       localStorage.setItem("user", JSON.stringify(userData));
       setUser(userData);
       
@@ -118,6 +148,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         login,
         signup,
         logout,
+        updateUserProfile,
         isAuthenticated: !!user,
         isLoading,
       }}
