@@ -9,7 +9,107 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      employees: {
+        Row: {
+          created_at: string
+          department: string | null
+          email: string | null
+          engagement_score: number | null
+          feedback: string | null
+          first_name: string
+          hire_date: string | null
+          id: string
+          last_name: string
+          location: string | null
+          manager: string | null
+          performance_score: number | null
+          position: string | null
+          retention_risk: string | null
+          salary: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          department?: string | null
+          email?: string | null
+          engagement_score?: number | null
+          feedback?: string | null
+          first_name: string
+          hire_date?: string | null
+          id?: string
+          last_name: string
+          location?: string | null
+          manager?: string | null
+          performance_score?: number | null
+          position?: string | null
+          retention_risk?: string | null
+          salary?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          department?: string | null
+          email?: string | null
+          engagement_score?: number | null
+          feedback?: string | null
+          first_name?: string
+          hire_date?: string | null
+          id?: string
+          last_name?: string
+          location?: string | null
+          manager?: string | null
+          performance_score?: number | null
+          position?: string | null
+          retention_risk?: string | null
+          salary?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          company_name: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string | null
+          role: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          company_name?: string | null
+          created_at?: string
+          email: string
+          id: string
+          name?: string | null
+          role?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          company_name?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string | null
+          role?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

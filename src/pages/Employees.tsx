@@ -2,21 +2,23 @@
 import { useState } from "react";
 import { ChevronRight, FileSpreadsheet, Plus, UploadCloud, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Link } from "react-router-dom";
 import EmployeeTable from "@/components/EmployeeTable";
 import DataImportModal from "@/components/DataImportModal";
 import { toast } from "sonner";
+import NewEmployeeModal from "@/components/NewEmployeeModal";
 
 const Employees = () => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isNewEmployeeModalOpen, setIsNewEmployeeModalOpen] = useState(false);
 
   const handleOpenImportModal = () => {
     setIsImportModalOpen(true);
   };
   
   const handleCreateEmployee = () => {
-    toast.info("Create employee functionality coming soon");
+    setIsNewEmployeeModalOpen(true);
   };
 
   return (
@@ -27,13 +29,13 @@ const Employees = () => {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink as={Link} to="/dashboard">Dashboard</BreadcrumbLink>
+                <Link to="/dashboard">Dashboard</Link>
               </BreadcrumbItem>
               <BreadcrumbSeparator>
                 <ChevronRight className="h-4 w-4" />
               </BreadcrumbSeparator>
               <BreadcrumbItem>
-                <BreadcrumbLink aria-current="page">Employees</BreadcrumbLink>
+                <span>Employees</span>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -125,6 +127,12 @@ const Employees = () => {
         <DataImportModal 
           open={isImportModalOpen}
           onOpenChange={setIsImportModalOpen}
+        />
+
+        {/* New Employee Modal */}
+        <NewEmployeeModal
+          open={isNewEmployeeModalOpen}
+          onOpenChange={setIsNewEmployeeModalOpen}
         />
       </div>
     </div>

@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera } from "lucide-react";
 
@@ -22,15 +21,15 @@ interface UserProfileModalProps {
 }
 
 const UserProfileModal = ({ open, onOpenChange }: UserProfileModalProps) => {
-  const { user } = useAuth();
+  const { profile, updateUserProfile } = useAuth();
   const [formData, setFormData] = useState({
-    email: user?.email || "",
-    name: user?.name || "",
-    companyName: user?.companyName || "",
-    role: user?.role || "",
+    email: profile?.email || "",
+    name: profile?.name || "",
+    companyName: profile?.companyName || "",
+    role: profile?.role || "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(profile?.avatarUrl || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,16 +55,23 @@ const UserProfileModal = ({ open, onOpenChange }: UserProfileModalProps) => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
-      toast.success("Profile updated successfully");
+    try {
+      await updateUserProfile({
+        name: formData.name,
+        companyName: formData.companyName,
+        role: formData.role,
+        avatarUrl: avatarPreview || undefined
+      });
       onOpenChange(false);
-    }, 1000);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getInitials = (name: string) => {

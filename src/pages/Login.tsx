@@ -15,8 +15,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -24,10 +24,9 @@ const formSchema = z.object({
 });
 
 const Login = () => {
-  const { toast } = useToast();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const { login, isLoading } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -38,32 +37,11 @@ const Login = () => {
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    setIsLoading(true);
     try {
-      // This is a placeholder for actual authentication logic
-      // In a real app, you would connect to a backend service
-      console.log("Login attempt with:", values);
-
-      // Simulating a successful login
-      setTimeout(() => {
-        // Store user info in localStorage (in a real app, you'd store a JWT token)
-        localStorage.setItem("user", JSON.stringify({ email: values.email, isLoggedIn: true }));
-        
-        toast({
-          title: "Success!",
-          description: "You have successfully logged in.",
-        });
-        
-        navigate("/dashboard");
-      }, 1000);
+      await login(values.email, values.password);
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Login failed",
-        description: "Please check your credentials and try again.",
-      });
-    } finally {
-      setIsLoading(false);
+      // Error is handled in the useAuth hook
+      console.error("Login error:", error);
     }
   };
 
@@ -179,7 +157,12 @@ const Login = () => {
                 className="w-full bg-thrive-600 hover:bg-thrive-700"
                 disabled={isLoading}
               >
-                {isLoading ? "Signing in..." : "Sign in"}
+                {isLoading ? (
+                  <>
+                    <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Signing in...
+                  </>
+                ) : "Sign in"}
               </Button>
             </form>
           </Form>

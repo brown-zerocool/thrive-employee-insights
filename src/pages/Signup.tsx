@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,8 +15,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 import { Briefcase, Eye, EyeOff, Lock, Mail, User } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -30,10 +30,8 @@ const formSchema = z.object({
 });
 
 const Signup = () => {
-  const { toast } = useToast();
-  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const { signup, isLoading } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -46,40 +44,16 @@ const Signup = () => {
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    setIsLoading(true);
     try {
-      // This is a placeholder for actual sign-up logic
-      // In a real app, you would connect to a backend service
-      console.log("Signup attempt with:", values);
-
-      // Simulating a successful signup
-      setTimeout(() => {
-        // Store user info in localStorage (in a real app, you'd store a JWT token)
-        localStorage.setItem(
-          "user",
-          JSON.stringify({ 
-            email: values.email, 
-            companyName: values.companyName,
-            role: values.role,
-            isLoggedIn: true 
-          })
-        );
-        
-        toast({
-          title: "Account created!",
-          description: "Your account has been successfully created.",
-        });
-        
-        navigate("/dashboard");
-      }, 1000);
+      await signup(
+        values.email, 
+        values.password, 
+        values.companyName, 
+        values.role
+      );
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Signup failed",
-        description: "Please check your information and try again.",
-      });
-    } finally {
-      setIsLoading(false);
+      // Error is handled in the useAuth hook
+      console.error("Signup error:", error);
     }
   };
 
@@ -227,7 +201,12 @@ const Signup = () => {
                 className="w-full bg-thrive-600 hover:bg-thrive-700"
                 disabled={isLoading}
               >
-                {isLoading ? "Creating account..." : "Create account"}
+                {isLoading ? (
+                  <>
+                    <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Creating account...
+                  </>
+                ) : "Create account"}
               </Button>
             </form>
           </Form>
