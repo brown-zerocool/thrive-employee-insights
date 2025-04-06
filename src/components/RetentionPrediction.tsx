@@ -41,7 +41,7 @@ const RetentionPrediction = () => {
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+  const [showApiKeyInput, setShowApiKeyInput] = useState(true);
   const [config, setConfig] = useState<PredictionConfig>({
     timeFrame: "3m",
     includeFactors: {
@@ -53,9 +53,9 @@ const RetentionPrediction = () => {
   });
 
   const handleGeneratePredictions = async () => {
-    if (!apiKey && !showApiKeyInput) {
+    if (!apiKey) {
+      toast.error("Please enter your OpenAI API key to continue");
       setShowApiKeyInput(true);
-      toast.info("Please enter your OpenAI API key to continue");
       return;
     }
 
@@ -118,24 +118,26 @@ const RetentionPrediction = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {showApiKeyInput && (
-                  <div className="space-y-2 mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <Label htmlFor="api-key" className="text-sm font-medium">
-                      OpenAI API Key
-                    </Label>
-                    <Input
-                      id="api-key"
-                      type="password"
-                      value={apiKey}
-                      onChange={handleApiKeyChange}
-                      placeholder="sk-..."
-                      className="font-mono text-sm"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Your API key is used only for this session and is not stored.
-                    </p>
-                  </div>
-                )}
+                <div className="space-y-2 mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <Label htmlFor="api-key" className="text-sm font-medium flex items-center gap-1">
+                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    OpenAI API Key Required
+                  </Label>
+                  <Input
+                    id="api-key"
+                    type="password"
+                    value={apiKey}
+                    onChange={handleApiKeyChange}
+                    placeholder="sk-..."
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Your API key is used only for this session and is not stored.{" "}
+                    <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" className="text-blue-500 hover:underline">
+                      Get your API key here
+                    </a>
+                  </p>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -218,23 +220,11 @@ const RetentionPrediction = () => {
                 <Button 
                   onClick={handleGeneratePredictions} 
                   className="w-full" 
-                  disabled={loading}
+                  disabled={loading || !apiKey}
                 >
                   <Sparkles className="mr-2 h-4 w-4" />
-                  {loading ? "Generating Predictions..." : showApiKeyInput && !apiKey ? "Continue with API Key" : "Generate AI Predictions"}
+                  {loading ? "Generating Predictions..." : "Generate AI Predictions"}
                 </Button>
-
-                {!showApiKeyInput && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full mt-2"
-                    onClick={() => setShowApiKeyInput(true)}
-                  >
-                    <BrainCircuit className="mr-2 h-4 w-4" />
-                    Configure OpenAI API Key
-                  </Button>
-                )}
               </div>
             </CardContent>
           </Card>
@@ -311,7 +301,7 @@ const RetentionPrediction = () => {
                 <div className="space-y-2">
                   <h3 className="font-medium">No predictions yet</h3>
                   <p className="text-sm text-muted-foreground max-w-md">
-                    Configure your prediction settings on the left and click "Generate AI Predictions" to identify employees who might be at risk.
+                    Enter your OpenAI API key, configure your prediction settings, and click "Generate AI Predictions" to identify employees who might be at risk.
                   </p>
                 </div>
               </CardContent>
