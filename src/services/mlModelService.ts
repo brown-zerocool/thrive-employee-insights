@@ -39,7 +39,8 @@ export const saveModelToSupabase = async (
         features: params.features,
         parameters: params.parameters || {},
         metrics: params.metrics || {},
-        model_data: modelInfo ? JSON.parse(modelInfo) : null
+        model_data: modelInfo ? JSON.parse(modelInfo) : null,
+        user_id: (await supabase.auth.getUser()).data.user?.id
       })
       .select('id')
       .single();
@@ -118,7 +119,8 @@ export const savePredictionToSupabase = async (
         model_id: modelId,
         time_frame: timeFrame,
         factors: factors || {},
-        confidence_score: prediction.confidence || null
+        confidence_score: prediction.confidence || null,
+        user_id: (await supabase.auth.getUser()).data.user?.id
       })
       .select('id')
       .single();
