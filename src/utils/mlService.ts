@@ -1,6 +1,7 @@
 
 import * as tf from '@tensorflow/tfjs';
 import { toast } from "sonner";
+import { saveModelToSupabase, savePredictionToSupabase } from "@/services/mlModelService";
 
 /**
  * Processes data for training by extracting features and targets
@@ -183,17 +184,36 @@ export const evaluateModel = (
 };
 
 /**
- * Saves a model to localStorage
+ * Saves a model to localStorage and Supabase
  * @param model Model to save
  * @param modelName Custom name for the model
+ * @param features Feature columns used for training
+ * @param metrics Evaluation metrics
  */
-export const saveModel = async (model: tf.LayersModel, modelName: string): Promise<void> => {
+export const saveModel = async (
+  model: tf.LayersModel, 
+  modelName: string, 
+  features: string[],
+  metrics?: { mse: number, rmse: number, r2: number }
+): Promise<string | null> => {
   try {
+    // First save to localStorage
     await model.save(`localstorage://${modelName}`);
+    
+    // Then save to Supabase if user is authenticated
+    const modelId = await saveModelToSupabase(model, {
+      name: modelName,
+      modelType: "neural_network",
+      features: features,
+      metrics
+    });
+    
     toast.success(`Model "${modelName}" saved successfully`);
+    return modelId;
   } catch (error) {
     console.error("Error saving model:", error);
     toast.error("Failed to save model");
+    return null;
   }
 };
 
@@ -222,9 +242,31 @@ export const listSavedModels = (): string[] => {
   const models: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key && key.startsWith('localstorage://')) {
+    if (key && key.startsWith('localstorage://') && !key.endsWith('_info')) {
       models.push(key.replace('localstorage://', ''));
     }
   }
   return models;
+};
+
+/**
+ * Save prediction results to database
+ * @param predictionData The prediction data object
+ * @param modelId Optional ID of the model used
+ * @param employeeId Optional ID of the employee
+ */
+export const savePredictionResult = async (
+  predictionData: any,
+  modelId?: string,
+  employeeId?: string,
+  timeFrame?: string,
+  factors?: any
+): Promise<string | null> => {
+  return await savePredictionToSupabase(
+    predictionData,
+    employeeId,
+    modelId,
+    timeFrame,
+    factors
+  );
 };

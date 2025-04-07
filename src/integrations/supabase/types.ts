@@ -77,6 +77,105 @@ export type Database = {
           },
         ]
       }
+      ml_models: {
+        Row: {
+          created_at: string
+          description: string | null
+          features: Json
+          id: string
+          metrics: Json | null
+          model_data: Json | null
+          model_type: string
+          name: string
+          parameters: Json | null
+          training_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          features: Json
+          id?: string
+          metrics?: Json | null
+          model_data?: Json | null
+          model_type: string
+          name: string
+          parameters?: Json | null
+          training_date?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          features?: Json
+          id?: string
+          metrics?: Json | null
+          model_data?: Json | null
+          model_type?: string
+          name?: string
+          parameters?: Json | null
+          training_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      predictions: {
+        Row: {
+          confidence_score: number | null
+          created_at: string
+          employee_id: string | null
+          factors: Json | null
+          id: string
+          model_id: string | null
+          prediction_date: string
+          prediction_result: Json
+          time_frame: string | null
+          user_id: string
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string
+          employee_id?: string | null
+          factors?: Json | null
+          id?: string
+          model_id?: string | null
+          prediction_date?: string
+          prediction_result: Json
+          time_frame?: string | null
+          user_id: string
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string
+          employee_id?: string | null
+          factors?: Json | null
+          id?: string
+          model_id?: string | null
+          prediction_date?: string
+          prediction_result?: Json
+          time_frame?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "predictions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "predictions_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "ml_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

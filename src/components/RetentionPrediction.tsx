@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sparkles, BrainCircuit, Users, Badge } from "lucide-react";
@@ -9,6 +9,8 @@ import { ApiKeyInput } from "@/components/prediction/ApiKeyInput";
 import { PredictionConfigForm } from "@/components/prediction/PredictionConfig";
 import { PredictionResults } from "@/components/prediction/PredictionResults";
 import { EmptyPredictionState } from "@/components/prediction/EmptyPredictionState";
+import { savePredictionResult } from "@/utils/mlService";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PredictionResult {
   employee: string;
@@ -35,6 +37,7 @@ const RetentionPrediction = () => {
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [showApiKeyInput, setShowApiKeyInput] = useState(true);
+  const [session, setSession] = useState<any>(null);
   const [config, setConfig] = useState<PredictionConfig>({
     timeFrame: "3m",
     includeFactors: {
@@ -44,6 +47,24 @@ const RetentionPrediction = () => {
       growth: true,
     },
   });
+
+  // Check if user is logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+    };
+    
+    checkSession();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_, session) => {
+        setSession(session);
+      }
+    );
+    
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleGeneratePredictions = async () => {
     if (!apiKey) {
@@ -60,6 +81,32 @@ const RetentionPrediction = () => {
       
       if (results && results.length > 0) {
         setPredictions(results);
+        
+        // Save predictions to database if user is logged in
+        if (session) {
+          // Save each prediction to the database
+          for (const prediction of results) {
+            await savePredictionResult(
+              {
+                employee_name: prediction.employee,
+                score: prediction.score,
+                risk_level: prediction.risk,
+                reason: prediction.reason,
+                recommendation: prediction.recommendation
+              },
+              null, // model ID - not applicable for AI predictions
+              null, // employee ID - would need to map employee names to IDs
+              config.timeFrame,
+              {
+                factors: Object.entries(config.includeFactors)
+                  .filter(([_, included]) => included)
+                  .map(([factor]) => factor),
+                department: config.department || 'all'
+              }
+            );
+          }
+        }
+        
         toast.success("Retention predictions generated successfully");
       } else {
         toast.error("Failed to generate predictions. Please check your API key and try again.");
@@ -129,6 +176,12 @@ const RetentionPrediction = () => {
                   <Sparkles className="mr-2 h-4 w-4" />
                   {loading ? "Generating Predictions..." : "Generate AI Predictions"}
                 </Button>
+
+                {!session && (
+                  <div className="text-xs text-muted-foreground p-2 bg-gray-50 rounded border mt-2">
+                    <p>Sign in to save your predictions and access them later.</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
