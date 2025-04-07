@@ -3,18 +3,20 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+interface IncludeFactorsType {
+  compensation: boolean;
+  workload: boolean;
+  engagement: boolean;
+  growth: boolean;
+}
+
 interface PredictionConfigProps {
   department?: string;
   timeFrame: string;
-  includeFactors: {
-    compensation: boolean;
-    workload: boolean;
-    engagement: boolean;
-    growth: boolean;
-  };
+  includeFactors: IncludeFactorsType;
   onUpdateDepartment: (value: string) => void;
   onUpdateTimeFrame: (value: string) => void;
-  onUpdateFactors: (factor: keyof typeof includeFactors, checked: boolean) => void;
+  onUpdateFactors: (factor: keyof IncludeFactorsType, checked: boolean) => void;
 }
 
 export const PredictionConfigForm = ({
