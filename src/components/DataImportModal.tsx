@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { analyzeEmployeeData } from "@/utils/dataAnalysisUtils";
 import DataInsightsPanel from "@/components/DataInsightsPanel";
 
-// Import our new components
+// Import our components
 import FileUpload from "@/components/data-import/FileUpload";
 import ApiKeyInput from "@/components/data-import/ApiKeyInput";
 import AnalyzeButton from "@/components/data-import/AnalyzeButton";
@@ -127,7 +127,7 @@ const DataImportModal = ({ open, onOpenChange }: DataImportModalProps) => {
             {/* Insights Display */}
             {insights && (
               <div className="mt-4">
-                <DataInsightsPanel insights={insights} />
+                <DataInsightsPanel insights={insights} csvData={csvData} />
               </div>
             )}
           </div>
