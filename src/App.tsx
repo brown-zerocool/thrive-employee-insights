@@ -12,6 +12,7 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
+import MLDashboard from "./pages/MLDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./hooks/useAuth";
 
@@ -50,6 +51,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <EmployeeProfile />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/ml-dashboard" 
+              element={
+                <ProtectedRoute>
+                  <MLDashboard />
                 </ProtectedRoute>
               } 
             />
