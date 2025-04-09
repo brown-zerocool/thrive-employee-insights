@@ -1,13 +1,12 @@
-
 import React, { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/Navbar";
-import { Settings, ActivityLog, ChartBar, Bell } from "lucide-react";
+import { Settings, Activity, ChartBar, Bell } from "lucide-react";
 import UserSettingsPanel from "@/components/UserSettingsPanel";
 import AuditLogPanel from "@/components/AuditLogPanel";
 import PerformanceDashboard from "@/components/dashboard/PerformanceDashboard";
-import { NotificationsTab } from "@/components/dashboard/NotificationsTab";
+import NotificationsTab from "@/components/dashboard/NotificationsTab";
 
 const SystemSettings = () => {
   const [activeTab, setActiveTab] = useState("user");
@@ -45,7 +44,7 @@ const SystemSettings = () => {
               <span className="hidden sm:inline">Performance</span>
             </TabsTrigger>
             <TabsTrigger value="audit" className="flex items-center gap-2">
-              <ActivityLog className="h-4 w-4" />
+              <Activity className="h-4 w-4" />
               <span className="hidden sm:inline">Audit Log</span>
             </TabsTrigger>
           </TabsList>
