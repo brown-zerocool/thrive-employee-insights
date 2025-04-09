@@ -1,5 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { createAuditLog } from "@/services/databaseService";
+import { AuditLog } from "@/types/ml";
 
 type AuditAction = 
   | "create" 
@@ -46,20 +48,14 @@ export const logAuditEvent = async ({
     // Get the IP address (this would typically be handled by the server)
     const ip_address = "127.0.0.1"; // Placeholder for client-side logging
     
-    const { error } = await supabase
-      .from("audit_logs")
-      .insert({
-        user_id: currentUserId,
-        action,
-        entity_type,
-        entity_id,
-        details,
-        ip_address
-      });
-    
-    if (error) {
-      throw error;
-    }
+    await createAuditLog({
+      user_id: currentUserId,
+      action,
+      entity_type,
+      entity_id,
+      details,
+      ip_address
+    });
   } catch (error) {
     console.error("Failed to log audit event:", error);
   }

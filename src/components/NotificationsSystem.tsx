@@ -2,22 +2,19 @@
 import React, { useState, useEffect } from "react";
 import { Bell, BellOff, X, Check, Info, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: "info" | "success" | "warning" | "error";
-  read: boolean;
-  created_at: string;
-  user_id: string;
-}
+import { Notification } from "@/types/ml";
+import { 
+  fetchNotifications, 
+  markNotificationAsRead, 
+  markAllNotificationsAsRead, 
+  deleteNotification, 
+  deleteAllNotifications 
+} from "@/services/databaseService";
 
 const NotificationsSystem = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -27,7 +24,7 @@ const NotificationsSystem = () => {
 
   useEffect(() => {
     if (session?.user) {
-      fetchNotifications();
+      fetchUserNotifications();
       setupRealtimeSubscription();
     }
   }, [session]);
@@ -37,21 +34,12 @@ const NotificationsSystem = () => {
     setUnreadCount(notifications.filter(n => !n.read).length);
   }, [notifications]);
 
-  const fetchNotifications = async () => {
+  const fetchUserNotifications = async () => {
     if (!session?.user?.id) return;
     
     try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .order('created_at', { ascending: false })
-        .limit(20);
-      
-      if (error) throw error;
-      
-      // Type assertion to ensure the data conforms to our Notification interface
-      setNotifications(data as Notification[] || []);
+      const data = await fetchNotifications();
+      setNotifications(data);
     } catch (error) {
       console.error("Error fetching notifications:", error);
     }
@@ -96,14 +84,9 @@ const NotificationsSystem = () => {
     };
   };
 
-  const markAsRead = async (id: string) => {
+  const handleMarkAsRead = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true })
-        .eq('id', id);
-      
-      if (error) throw error;
+      await markNotificationAsRead(id);
       
       setNotifications(prev => 
         prev.map(n => n.id === id ? { ...n, read: true } : n)
@@ -113,15 +96,11 @@ const NotificationsSystem = () => {
     }
   };
 
-  const markAllAsRead = async () => {
+  const handleMarkAllAsRead = async () => {
+    if (!session?.user?.id) return;
+    
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true })
-        .eq('user_id', session?.user?.id)
-        .eq('read', false);
-      
-      if (error) throw error;
+      await markAllNotificationsAsRead(session.user.id);
       
       setNotifications(prev => 
         prev.map(n => ({ ...n, read: true }))
@@ -133,14 +112,9 @@ const NotificationsSystem = () => {
     }
   };
 
-  const deleteNotification = async (id: string) => {
+  const handleDeleteNotification = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
+      await deleteNotification(id);
       
       setNotifications(prev => prev.filter(n => n.id !== id));
     } catch (error) {
@@ -148,14 +122,11 @@ const NotificationsSystem = () => {
     }
   };
 
-  const deleteAllNotifications = async () => {
+  const handleDeleteAllNotifications = async () => {
+    if (!session?.user?.id) return;
+    
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('user_id', session?.user?.id);
-      
-      if (error) throw error;
+      await deleteAllNotifications(session.user.id);
       
       setNotifications([]);
       toast.success("All notifications cleared");
@@ -195,13 +166,13 @@ const NotificationsSystem = () => {
           <h3 className="font-medium">Notifications</h3>
           <div className="flex items-center gap-2">
             {unreadCount > 0 && (
-              <Button variant="ghost" size="sm" onClick={markAllAsRead}>
+              <Button variant="ghost" size="sm" onClick={handleMarkAllAsRead}>
                 <Check className="h-4 w-4 mr-1" />
                 <span className="text-xs">Mark all read</span>
               </Button>
             )}
             {notifications.length > 0 && (
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={deleteAllNotifications}>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleDeleteAllNotifications}>
                 <X className="h-4 w-4" />
               </Button>
             )}
@@ -235,7 +206,7 @@ const NotificationsSystem = () => {
                               variant="ghost" 
                               size="icon" 
                               className="h-5 w-5" 
-                              onClick={() => markAsRead(notification.id)}
+                              onClick={() => handleMarkAsRead(notification.id)}
                             >
                               <Check className="h-3 w-3" />
                             </Button>
@@ -244,7 +215,7 @@ const NotificationsSystem = () => {
                             variant="ghost" 
                             size="icon" 
                             className="h-5 w-5" 
-                            onClick={() => deleteNotification(notification.id)}
+                            onClick={() => handleDeleteNotification(notification.id)}
                           >
                             <X className="h-3 w-3" />
                           </Button>
