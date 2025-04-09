@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { MLModel, Prediction, Notification, UserPreferences, AuditLog } from "@/types/ml";
 
@@ -52,7 +53,7 @@ export const fetchPredictions = async () => {
     .order('created_at', { ascending: false });
     
   if (error) throw error;
-  return data;
+  return data as Prediction[];
 };
 
 export const createPrediction = async (prediction: Omit<Prediction, 'id' | 'created_at' | 'prediction_date'>) => {

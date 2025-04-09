@@ -460,14 +460,16 @@ const Dashboard = () => {
         open={showImportModal}
         onOpenChange={setShowImportModal}
       />
-      <UserProfileModal
-        open={showProfileModal}
-        onOpenChange={setShowProfileModal}
-      />
-      <SettingsModal
-        open={showSettingsModal}
-        onOpenChange={setShowSettingsModal}
-      />
+      {showProfileModal && (
+        <UserProfileModal
+          onOpenChange={setShowProfileModal}
+        />
+      )}
+      {showSettingsModal && (
+        <SettingsModal
+          onOpenChange={setShowSettingsModal}
+        />
+      )}
     </div>
   );
 };

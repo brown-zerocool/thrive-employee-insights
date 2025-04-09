@@ -2,14 +2,18 @@
 import { Button } from "@/components/ui/button";
 import UserProfileModal from "@/components/UserProfileModal";
 import { useAuth } from "@/hooks/useAuth";
-import { Link } from "react-router-dom";
-
-// Import the NotificationsSystem component
+import { Link, useLocation } from "react-router-dom";
 import NotificationsSystem from "./NotificationsSystem";
-import { Settings } from "lucide-react";
+import { Settings, Users, Home, Brain } from "lucide-react";
 
 export const Navbar = () => {
   const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  
+  // Function to determine if a link is active
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
 
   return (
     <header className="bg-background border-b">
@@ -21,17 +25,49 @@ export const Navbar = () => {
           <nav className="hidden md:flex items-center gap-6">
             {isAuthenticated && (
               <>
-                <Link to="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Dashboard
+                <Link 
+                  to="/dashboard" 
+                  className={`flex items-center gap-1 ${
+                    isActive("/dashboard") || isActive("/") 
+                      ? "text-foreground font-medium" 
+                      : "text-muted-foreground hover:text-foreground transition-colors"
+                  }`}
+                >
+                  <Home className="h-4 w-4" />
+                  <span>Dashboard</span>
                 </Link>
-                <Link to="/employees" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Employees
+                <Link 
+                  to="/employees" 
+                  className={`flex items-center gap-1 ${
+                    isActive("/employees") 
+                      ? "text-foreground font-medium" 
+                      : "text-muted-foreground hover:text-foreground transition-colors"
+                  }`}
+                >
+                  <Users className="h-4 w-4" />
+                  <span>Employees</span>
                 </Link>
-                <Link to="/ml-dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
-                  ML Dashboard
+                <Link 
+                  to="/ml-dashboard" 
+                  className={`flex items-center gap-1 ${
+                    isActive("/ml-dashboard") 
+                      ? "text-foreground font-medium" 
+                      : "text-muted-foreground hover:text-foreground transition-colors"
+                  }`}
+                >
+                  <Brain className="h-4 w-4" />
+                  <span>ML Dashboard</span>
                 </Link>
-                <Link to="/settings" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Settings
+                <Link 
+                  to="/settings" 
+                  className={`flex items-center gap-1 ${
+                    isActive("/settings") 
+                      ? "text-foreground font-medium" 
+                      : "text-muted-foreground hover:text-foreground transition-colors"
+                  }`}
+                >
+                  <Settings className="h-4 w-4" />
+                  <span>Settings</span>
                 </Link>
               </>
             )}

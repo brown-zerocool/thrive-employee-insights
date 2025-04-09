@@ -79,17 +79,38 @@ const PerformanceDashboard = () => {
       };
 
       const highRisk = predictions.filter(p => {
-        const risk = p.prediction_result?.risk;
+        // Safely access the risk value and handle various formats
+        const result = p.prediction_result;
+        const risk = typeof result === 'object' && result !== null && 'risk' in result 
+          ? result.risk
+          : typeof result === 'string' && result.includes('high') 
+            ? 'high'
+            : null;
+            
         return risk === "high";
       }).length;
       
       const mediumRisk = predictions.filter(p => {
-        const risk = p.prediction_result?.risk;
+        // Safely access the risk value and handle various formats
+        const result = p.prediction_result;
+        const risk = typeof result === 'object' && result !== null && 'risk' in result 
+          ? result.risk
+          : typeof result === 'string' && result.includes('medium') 
+            ? 'medium'
+            : null;
+            
         return risk === "medium";
       }).length;
       
       const lowRisk = predictions.filter(p => {
-        const risk = p.prediction_result?.risk;
+        // Safely access the risk value and handle various formats
+        const result = p.prediction_result;
+        const risk = typeof result === 'object' && result !== null && 'risk' in result 
+          ? result.risk
+          : typeof result === 'string' && result.includes('low') 
+            ? 'low'
+            : null;
+            
         return risk === "low";
       }).length;
       
