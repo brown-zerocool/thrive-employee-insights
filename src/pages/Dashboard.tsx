@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   Card,
@@ -451,7 +452,6 @@ const Dashboard = () => {
         </div>
       </div>
       
-      {/* Fix the props for the modals */}
       <NewEmployeeModal 
         open={showNewEmployeeModal} 
         onOpenChange={setShowNewEmployeeModal} 
@@ -460,16 +460,14 @@ const Dashboard = () => {
         open={showImportModal}
         onOpenChange={setShowImportModal}
       />
-      {showProfileModal && (
-        <UserProfileModal
-          onOpenChange={setShowProfileModal}
-        />
-      )}
-      {showSettingsModal && (
-        <SettingsModal
-          onOpenChange={setShowSettingsModal}
-        />
-      )}
+      <UserProfileModal
+        open={showProfileModal}
+        onOpenChange={setShowProfileModal}
+      />
+      <SettingsModal
+        open={showSettingsModal}
+        onOpenChange={setShowSettingsModal}
+      />
     </div>
   );
 };

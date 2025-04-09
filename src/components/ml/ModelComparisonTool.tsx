@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -58,26 +59,19 @@ const ModelComparisonTool = () => {
         throw error;
       }
 
-      const formattedModels: ModelComparison[] = (data || []).map(model => {
-        // Safely extract metrics
-        const metrics = model.metrics as Record<string, any> || {};
-        // Safely extract features array
-        const features = Array.isArray(model.features) ? model.features : [];
-        
-        return {
-          id: model.id,
-          name: model.name,
-          modelType: model.model_type,
-          accuracy: getModelAccuracy(metrics),
-          rmse: metrics?.rmse || 0,
-          mse: metrics?.mse || 0,
-          r2: metrics?.r2 || 0,
-          createdAt: model.created_at,
-          featureCount: features.length || 0,
-          features: features as string[],
-          parameters: model.parameters as Record<string, any> || {}
-        };
-      });
+      const formattedModels: ModelComparison[] = (data || []).map(model => ({
+        id: model.id,
+        name: model.name,
+        modelType: model.model_type,
+        accuracy: getModelAccuracy(model.metrics),
+        rmse: model.metrics?.rmse,
+        mse: model.metrics?.mse,
+        r2: model.metrics?.r2,
+        createdAt: model.created_at,
+        featureCount: model.features?.length || 0,
+        features: model.features || [],
+        parameters: model.parameters || {}
+      }));
 
       setModels(formattedModels);
       

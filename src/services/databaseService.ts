@@ -53,7 +53,7 @@ export const fetchPredictions = async () => {
     .order('created_at', { ascending: false });
     
   if (error) throw error;
-  return data as Prediction[];
+  return data;
 };
 
 export const createPrediction = async (prediction: Omit<Prediction, 'id' | 'created_at' | 'prediction_date'>) => {
@@ -154,39 +154,35 @@ export const fetchAuditLogs = async (options: {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
   
-  try {
-    // Use a simpler query that doesn't rely on the join with profiles
-    let query = supabase
-      .from('audit_logs')
-      .select('*', { count: 'exact' });
+  let query = supabase
+    .from('audit_logs')
+    .select('*, profiles!inner(email)', { count: 'exact' });
 
-    if (action) {
-      query = query.eq('action', action);
-    }
-    
-    if (entity_type) {
-      query = query.eq('entity_type', entity_type);
-    }
-    
-    if (searchTerm) {
-      // Search only in details column since we don't have the email join
-      query = query.textSearch('details', searchTerm);
-    }
-
-    const { data, count, error } = await query
-      .order('created_at', { ascending: false })
-      .range(from, to);
-
-    if (error) throw error;
-    
-    return { 
-      data: data as AuditLog[], 
-      count: count || 0 
-    };
-  } catch (error) {
-    console.error("Failed to fetch audit logs:", error);
-    return { data: [], count: 0 };
+  if (action) {
+    query = query.eq('action', action);
   }
+  
+  if (entity_type) {
+    query = query.eq('entity_type', entity_type);
+  }
+  
+  if (searchTerm) {
+    query = query.or(`profiles.email.ilike.%${searchTerm}%,details->>'name'.ilike.%${searchTerm}%`);
+  }
+
+  const { data, count, error } = await query
+    .order('created_at', { ascending: false })
+    .range(from, to);
+
+  if (error) throw error;
+  
+  // Format the logs to include user_email
+  const logs = data?.map(log => ({
+    ...log,
+    user_email: log.profiles?.email,
+  })) || [];
+
+  return { data: logs as AuditLog[], count: count || 0 };
 };
 
 export const createAuditLog = async (log: Omit<AuditLog, 'id' | 'created_at' | 'user_email'>) => {

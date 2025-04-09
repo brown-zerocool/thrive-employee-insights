@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -78,41 +79,17 @@ const PerformanceDashboard = () => {
         avgConfidence: 0
       };
 
-      const highRisk = predictions.filter(p => {
-        // Safely access the risk value and handle various formats
-        const result = p.prediction_result;
-        const risk = typeof result === 'object' && result !== null && 'risk' in result 
-          ? result.risk
-          : typeof result === 'string' && result.includes('high') 
-            ? 'high'
-            : null;
-            
-        return risk === "high";
-      }).length;
+      const highRisk = predictions.filter(p => 
+        p.prediction_result?.risk === "high"
+      ).length;
       
-      const mediumRisk = predictions.filter(p => {
-        // Safely access the risk value and handle various formats
-        const result = p.prediction_result;
-        const risk = typeof result === 'object' && result !== null && 'risk' in result 
-          ? result.risk
-          : typeof result === 'string' && result.includes('medium') 
-            ? 'medium'
-            : null;
-            
-        return risk === "medium";
-      }).length;
+      const mediumRisk = predictions.filter(p => 
+        p.prediction_result?.risk === "medium"
+      ).length;
       
-      const lowRisk = predictions.filter(p => {
-        // Safely access the risk value and handle various formats
-        const result = p.prediction_result;
-        const risk = typeof result === 'object' && result !== null && 'risk' in result 
-          ? result.risk
-          : typeof result === 'string' && result.includes('low') 
-            ? 'low'
-            : null;
-            
-        return risk === "low";
-      }).length;
+      const lowRisk = predictions.filter(p => 
+        p.prediction_result?.risk === "low"
+      ).length;
       
       const confidenceSum = predictions.reduce(
         (sum, p) => sum + (p.confidence_score || 0), 0

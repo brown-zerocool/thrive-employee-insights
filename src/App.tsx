@@ -8,7 +8,6 @@ import { AuthProvider } from "./hooks/useAuth";
 import LoginPage from "./pages/Login";
 import SignupPage from "./pages/Signup";
 import ProtectedRoute from "./components/ProtectedRoute";
-import Employees from "./pages/Employees";
 
 const App = () => {
   return (
@@ -25,11 +24,6 @@ const App = () => {
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
-            </ProtectedRoute>
-          } />
-          <Route path="/employees" element={
-            <ProtectedRoute>
-              <Employees />
             </ProtectedRoute>
           } />
           <Route path="/ml-dashboard" element={

@@ -1,253 +1,499 @@
-import React, { useState, useCallback } from "react";
-import { useDropzone } from "react-dropzone";
-import Papa from "papaparse";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Loader2 } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { useQuery } from "@tanstack/react-query";
-import { fetchMLModels } from "@/services/databaseService";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import FileUpload from "@/components/FileUpload";
 
-interface PredictionResult {
-  employee_id: string;
-  prediction: string;
-  confidence: number;
+import React, { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileSpreadsheet, Upload, Database, Play, Download, Check, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import * as tf from '@tensorflow/tfjs';
+import { loadModel, listSavedModels } from "@/utils/mlService";
+import { makePredictions, savePredictionResult } from "@/utils/mlService";
+import FileUpload from "@/components/data-import/FileUpload";
+import { parseCSV } from "@/utils/dataAnalysisUtils";
+
+interface BatchPredictionProps {
+  onPredictionsComplete?: (results: any[]) => void;
 }
 
-const BatchPredictionProcessor = () => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [parsedData, setParsedData] = useState<any[]>([]);
-  const [predictionResults, setPredictionResults] = useState<PredictionResult[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<string | null>(null);
-  const { toast } = useToast();
+const BatchPredictionProcessor: React.FC<BatchPredictionProps> = ({ onPredictionsComplete }) => {
+  const { session } = useAuth();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [results, setResults] = useState<any[]>([]);
+  const [inputData, setInputData] = useState<any[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  const [availableModels, setAvailableModels] = useState<any[]>([]);
+  const [mode, setMode] = useState<'upload' | 'database'>('upload');
+  const [selectedEmployees, setSelectedEmployees] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
 
-  const { data: models, isLoading: isLoadingModels } = useQuery({
-    queryKey: ["mlModels"],
-    queryFn: fetchMLModels,
-  });
+  // Fetch available models and employees on component mount
+  React.useEffect(() => {
+    fetchModels();
+    fetchEmployees();
+  }, []);
+
+  const fetchModels = async () => {
+    try {
+      const models = await listSavedModels();
+      setAvailableModels(models);
+    } catch (error) {
+      console.error("Error fetching models:", error);
+      toast.error("Failed to load saved models");
+    }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*')
+        .order('last_name', { ascending: true });
+      
+      if (error) throw error;
+      
+      setEmployees(data || []);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      toast.error("Failed to load employees");
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    try {
+      const content = await file.text();
+      const parsedData = await parseCSV(content);
+      setInputData(parsedData);
+      toast.success(`Uploaded ${parsedData.length} records`);
+    } catch (error) {
+      console.error("Error parsing CSV file:", error);
+      toast.error("Failed to parse CSV file");
+    }
+  };
 
   const handleModelSelect = (modelId: string) => {
-    setSelectedModel(modelId);
+    setSelectedModelId(modelId);
   };
 
-  const handleFileUpload = (file: File) => {
-    setSelectedFile(file);
-
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        setParsedData(results.data);
-      },
-      error: (error) => {
-        toast({
-          variant: "destructive",
-          title: "Error parsing CSV",
-          description: error.message,
-        });
-      },
-    });
+  const handleEmployeeToggle = (employee: any) => {
+    if (selectedEmployees.some(e => e.id === employee.id)) {
+      setSelectedEmployees(selectedEmployees.filter(e => e.id !== employee.id));
+    } else {
+      setSelectedEmployees([...selectedEmployees, employee]);
+    }
   };
 
-  const handlePredict = async () => {
-    if (!selectedFile || !selectedModel) {
-      toast({
-        variant: "destructive",
-        title: "Missing fields",
-        description: "Please upload a file and select a model.",
-      });
+  const handleSelectAll = () => {
+    if (selectedEmployees.length === employees.length) {
+      setSelectedEmployees([]);
+    } else {
+      setSelectedEmployees([...employees]);
+    }
+  };
+
+  const runBatchPrediction = async () => {
+    if (!selectedModelId) {
+      toast.error("Please select a model first");
       return;
     }
 
-    setIsLoading(true);
-    // Simulate prediction processing
-    setTimeout(() => {
-      const simulatedResults: PredictionResult[] = parsedData.map((row, index) => ({
-        employee_id: row.employee_id || `EMP${index + 1}`,
-        prediction: Math.random() > 0.5 ? "High Risk" : "Low Risk",
-        confidence: parseFloat((Math.random() * 100).toFixed(2)),
-      }));
+    let dataToProcess: any[] = [];
+    
+    if (mode === 'upload' && inputData.length > 0) {
+      dataToProcess = inputData;
+    } else if (mode === 'database' && selectedEmployees.length > 0) {
+      dataToProcess = selectedEmployees;
+    } else {
+      toast.error("No data available for prediction");
+      return;
+    }
 
-      setPredictionResults(simulatedResults);
-      setIsLoading(false);
+    setIsProcessing(true);
+    setProgress(0);
+    setResults([]);
 
-      toast({
-        title: "Predictions complete",
-        description: `Generated predictions for ${parsedData.length} employees.`,
-      });
-    }, 2000);
+    try {
+      // Get selected model
+      const selectedModel = availableModels.find(m => m.id === selectedModelId);
+      if (!selectedModel) {
+        throw new Error("Selected model not found");
+      }
+      
+      // Load model
+      const { model, min, max } = await loadModel(selectedModelId);
+      
+      const featureColumns = selectedModel.features;
+      
+      // Process in batches to avoid UI freezing
+      const batchSize = 10;
+      const batches = Math.ceil(dataToProcess.length / batchSize);
+      let processedResults: any[] = [];
+      
+      for (let i = 0; i < batches; i++) {
+        const start = i * batchSize;
+        const end = Math.min((i + 1) * batchSize, dataToProcess.length);
+        const batch = dataToProcess.slice(start, end);
+        
+        // Make predictions
+        const predictions = makePredictions(model, batch, featureColumns, min, max);
+        
+        // Process predictions
+        const batchResults = batch.map((item, index) => {
+          const predictionValue = predictions[index];
+          const score = predictionValue;
+          
+          let risk = 'low';
+          if (score > 0.7) {
+            risk = 'high';
+          } else if (score > 0.3) {
+            risk = 'medium';
+          }
+          
+          return {
+            employee: mode === 'database' ? `${item.first_name} ${item.last_name}` : 
+              (item.first_name && item.last_name ? `${item.first_name} ${item.last_name}` : `Employee ${index + 1}`),
+            employeeId: item.id,
+            score: score,
+            risk: risk,
+            department: item.department || 'Unknown',
+            timestamp: new Date().toISOString()
+          };
+        });
+        
+        processedResults = [...processedResults, ...batchResults];
+        
+        // Save predictions to database if user is logged in
+        if (session) {
+          for (const result of batchResults) {
+            if (result.employeeId) {
+              await savePredictionResult(
+                {
+                  score: result.score,
+                  risk: result.risk,
+                  timestamp: result.timestamp,
+                },
+                selectedModelId,
+                result.employeeId
+              );
+            }
+          }
+        }
+        
+        // Update progress
+        setProgress(Math.round(((i + 1) / batches) * 100));
+        setResults(processedResults);
+      }
+      
+      toast.success(`Successfully processed ${processedResults.length} predictions`);
+      
+      if (onPredictionsComplete) {
+        onPredictionsComplete(processedResults);
+      }
+      
+    } catch (error) {
+      console.error("Error in batch prediction:", error);
+      toast.error("Failed to process predictions");
+    } finally {
+      setIsProcessing(false);
+      setProgress(100);
+    }
+  };
+
+  const exportResults = (format: 'csv' | 'pdf' | 'excel') => {
+    if (results.length === 0) {
+      toast.error("No results to export");
+      return;
+    }
+    
+    if (format === 'csv') {
+      // Create CSV content
+      const headers = ["Employee", "Department", "Risk Level", "Score", "Timestamp"];
+      const csvContent = [
+        headers.join(","),
+        ...results.map(result => 
+          [
+            result.employee,
+            result.department,
+            result.risk,
+            result.score,
+            result.timestamp
+          ].join(",")
+        )
+      ].join("\n");
+      
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `predictions_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success("Predictions exported as CSV");
+    } else {
+      toast.info(`${format.toUpperCase()} export will be available in a future update`);
+    }
   };
 
   return (
-    <div className="grid gap-6">
-      <div>
-        <h2 className="text-lg font-semibold">Batch Prediction</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Upload a CSV file with employee data to generate predictions in bulk
-        </p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Upload Employee Data</CardTitle>
-          <CardDescription>
-            The file should be a CSV with headers matching the required features
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {!selectedModel ? (
-              <Alert variant="warning">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>No model selected</AlertTitle>
-                <AlertDescription>
-                  Please select a model before uploading employee data
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <>
-                <FileUpload
-                  label="Upload employee CSV file"
+    <Card>
+      <CardHeader>
+        <CardTitle>Batch Prediction Processor</CardTitle>
+        <CardDescription>
+          Process multiple predictions at once using your trained models
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="source" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="source">1. Select Data Source</TabsTrigger>
+            <TabsTrigger value="model">2. Run Predictions</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="source" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div 
+                className={`border rounded-lg p-4 cursor-pointer ${mode === 'upload' ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground/20'}`}
+                onClick={() => setMode('upload')}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <FileSpreadsheet className="h-5 w-5" />
+                  <h4 className="font-medium">CSV Upload</h4>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Upload a CSV file with employee data for batch processing
+                </p>
+              </div>
+              
+              <div 
+                className={`border rounded-lg p-4 cursor-pointer ${mode === 'database' ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground/20'}`}
+                onClick={() => setMode('database')}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Database className="h-5 w-5" />
+                  <h4 className="font-medium">Database Records</h4>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Select employees from your database to process
+                </p>
+              </div>
+            </div>
+            
+            {mode === 'upload' ? (
+              <div className="border rounded-lg p-4">
+                <FileUpload 
+                  onFileUpload={handleFileUpload}
                   accept=".csv"
-                  onUpload={handleFileUpload}
+                  label="Upload employee data CSV"
                 />
-                {isLoading && (
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Processing data...</span>
+                
+                {inputData.length > 0 && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{inputData.length} records loaded</span>
+                      <Button variant="outline" size="sm" onClick={() => setInputData([])}>
+                        Clear
+                      </Button>
+                    </div>
+                    
+                    <div className="mt-2 border rounded-lg overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted">
+                            <tr>
+                              {Object.keys(inputData[0] || {}).slice(0, 5).map((header) => (
+                                <th key={header} className="px-4 py-2 text-left">{header}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {inputData.slice(0, 3).map((row, i) => (
+                              <tr key={i} className="border-t">
+                                {Object.values(row).slice(0, 5).map((value: any, j) => (
+                                  <td key={j} className="px-4 py-2">{value}</td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {inputData.length > 3 && (
+                        <div className="px-4 py-2 bg-muted/50 text-center text-sm text-muted-foreground">
+                          ... {inputData.length - 3} more records
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Model</CardTitle>
-          <CardDescription>Choose the model to use for predictions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoadingModels ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Select onValueChange={handleModelSelect}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a model" />
-              </SelectTrigger>
-              <SelectContent>
-                {models?.map((model) => (
-                  <SelectItem key={model.id} value={model.id}>
-                    {model.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </CardContent>
-      </Card>
-
-      {parsedData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Data Preview</CardTitle>
-            <CardDescription>
-              First 5 rows of the uploaded data
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {Object.keys(parsedData[0]).map((header) => (
-                      <TableHead key={header}>{header}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {parsedData.slice(0, 5).map((row, index) => (
-                    <TableRow key={index}>
-                      {Object.values(row).map((value, i) => (
-                        <TableCell key={i}>{value}</TableCell>
+              </div>
+            ) : (
+              <div className="border rounded-lg p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-sm font-medium">Select Employees</h4>
+                  <Button variant="outline" size="sm" onClick={handleSelectAll}>
+                    {selectedEmployees.length === employees.length ? "Deselect All" : "Select All"}
+                  </Button>
+                </div>
+                
+                <div className="h-60 overflow-y-auto border rounded-lg p-2">
+                  {employees.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                      <AlertCircle className="h-8 w-8 mb-2 opacity-50" />
+                      <p>No employees found in database</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      {employees.map(employee => (
+                        <div 
+                          key={employee.id}
+                          className={`flex items-center p-2 rounded ${
+                            selectedEmployees.some(e => e.id === employee.id) 
+                              ? 'bg-primary/10' 
+                              : 'hover:bg-muted/50'
+                          } cursor-pointer`}
+                          onClick={() => handleEmployeeToggle(employee)}
+                        >
+                          <div className={`w-4 h-4 border rounded mr-2 ${
+                            selectedEmployees.some(e => e.id === employee.id)
+                              ? 'bg-primary border-primary'
+                              : 'border-input'
+                          } flex items-center justify-center`}>
+                            {selectedEmployees.some(e => e.id === employee.id) && (
+                              <Check className="h-3 w-3 text-white" />
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-medium">{employee.first_name} {employee.last_name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {employee.department || 'No department'} · {employee.position || 'No position'}
+                            </div>
+                          </div>
+                        </div>
                       ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="mt-2 text-sm text-muted-foreground">
+                  {selectedEmployees.length} of {employees.length} employees selected
+                </div>
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="model" className="space-y-4">
+            <div className="border rounded-lg p-4">
+              <h4 className="text-sm font-medium mb-2">Select Model</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {availableModels.length === 0 ? (
+                  <div className="col-span-2 text-center p-4 bg-muted/30 rounded-lg">
+                    <p className="text-muted-foreground">No saved models found</p>
+                    <p className="text-xs mt-1">Train a model first before running predictions</p>
+                  </div>
+                ) : (
+                  availableModels.map(model => (
+                    <div 
+                      key={model.id}
+                      className={`border rounded-lg p-3 cursor-pointer ${
+                        selectedModelId === model.id 
+                          ? 'border-primary bg-primary/5' 
+                          : 'hover:border-muted-foreground/20'
+                      }`}
+                      onClick={() => handleModelSelect(model.id)}
+                    >
+                      <div className="font-medium">{model.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {model.model_type} · {model.features?.length || 0} features
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {new Date(model.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {parsedData.length > 0 && (
-        <Button onClick={handlePredict} disabled={isLoading || !selectedModel}>
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing...
-            </>
-          ) : (
-            "Generate Predictions"
-          )}
-        </Button>
-      )}
-
-      {predictionResults.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Prediction Results</CardTitle>
-            <CardDescription>
-              Generated predictions for the uploaded data
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Employee ID</TableHead>
-                    <TableHead>Prediction</TableHead>
-                    <TableHead>Confidence</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {predictionResults.map((result, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{result.employee_id}</TableCell>
-                      <TableCell>{result.prediction}</TableCell>
-                      <TableCell>{result.confidence}%</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            
+            <div className="flex flex-col gap-4">
+              <Button 
+                onClick={runBatchPrediction} 
+                disabled={
+                  isProcessing || 
+                  !selectedModelId || 
+                  (mode === 'upload' && inputData.length === 0) || 
+                  (mode === 'database' && selectedEmployees.length === 0)
+                }
+                className="flex items-center gap-2"
+              >
+                <Play className="h-4 w-4" />
+                Run Batch Prediction
+              </Button>
+              
+              {isProcessing && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs mb-1">
+                    <span>Processing...</span>
+                    <span>{progress}%</span>
+                  </div>
+                  <Progress value={progress} />
+                </div>
+              )}
             </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+            
+            {results.length > 0 && (
+              <div className="border rounded-lg overflow-hidden">
+                <div className="flex justify-between items-center p-3 bg-muted/30">
+                  <h4 className="font-medium">Results ({results.length})</h4>
+                  <Button variant="outline" size="sm" onClick={() => exportResults('csv')}>
+                    <Download className="h-4 w-4 mr-1" /> Export
+                  </Button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="px-4 py-2 text-left">Employee</th>
+                        <th className="px-4 py-2 text-left">Department</th>
+                        <th className="px-4 py-2 text-left">Risk Level</th>
+                        <th className="px-4 py-2 text-left">Score</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {results.slice(0, 10).map((result, i) => (
+                        <tr key={i} className="border-t">
+                          <td className="px-4 py-2">{result.employee}</td>
+                          <td className="px-4 py-2">{result.department}</td>
+                          <td className="px-4 py-2">
+                            <div className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                              result.risk === 'high' ? 'bg-red-100 text-risk-high' : 
+                              result.risk === 'medium' ? 'bg-yellow-100 text-risk-medium' : 
+                              'bg-green-100 text-risk-low'
+                            }`}>
+                              {result.risk.charAt(0).toUpperCase() + result.risk.slice(1)}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2">{result.score.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {results.length > 10 && (
+                    <div className="px-4 py-2 bg-muted/50 text-center text-sm text-muted-foreground">
+                      ... {results.length - 10} more results
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 };
 
