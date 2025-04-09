@@ -13,6 +13,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import MLDashboard from "./pages/MLDashboard";
+import SystemSettings from "./pages/SystemSettings";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./hooks/useAuth";
 
@@ -59,6 +60,14 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <MLDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/settings" 
+                element={
+                  <ProtectedRoute>
+                    <SystemSettings />
                   </ProtectedRoute>
                 } 
               />

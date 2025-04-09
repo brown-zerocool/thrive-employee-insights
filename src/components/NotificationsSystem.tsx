@@ -16,6 +16,7 @@ interface Notification {
   type: "info" | "success" | "warning" | "error";
   read: boolean;
   created_at: string;
+  user_id: string;
 }
 
 const NotificationsSystem = () => {
@@ -49,7 +50,8 @@ const NotificationsSystem = () => {
       
       if (error) throw error;
       
-      setNotifications(data || []);
+      // Type assertion to ensure the data conforms to our Notification interface
+      setNotifications(data as Notification[] || []);
     } catch (error) {
       console.error("Error fetching notifications:", error);
     }
@@ -70,19 +72,19 @@ const NotificationsSystem = () => {
         },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            setNotifications(prev => [payload.new as Notification, ...prev]);
+            setNotifications(prev => [(payload.new as Notification), ...prev]);
             
             // Show toast for new notification
-            toast.info(payload.new.title, {
-              description: payload.new.message,
+            toast.info((payload.new as Notification).title, {
+              description: (payload.new as Notification).message,
             });
           } else if (payload.eventType === 'UPDATE') {
             setNotifications(prev => 
-              prev.map(n => n.id === payload.new.id ? payload.new as Notification : n)
+              prev.map(n => n.id === (payload.new as Notification).id ? (payload.new as Notification) : n)
             );
           } else if (payload.eventType === 'DELETE') {
             setNotifications(prev =>
-              prev.filter(n => n.id !== payload.old.id)
+              prev.filter(n => n.id !== (payload.old as Notification).id)
             );
           }
         }
