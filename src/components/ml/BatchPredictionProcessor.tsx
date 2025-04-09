@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,7 +29,6 @@ const BatchPredictionProcessor: React.FC<BatchPredictionProps> = ({ onPrediction
   const [selectedEmployees, setSelectedEmployees] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
 
-  // Fetch available models and employees on component mount
   React.useEffect(() => {
     fetchModels();
     fetchEmployees();
@@ -116,18 +114,18 @@ const BatchPredictionProcessor: React.FC<BatchPredictionProps> = ({ onPrediction
     setResults([]);
 
     try {
-      // Get selected model
       const selectedModel = availableModels.find(m => m.id === selectedModelId);
       if (!selectedModel) {
         throw new Error("Selected model not found");
       }
       
-      // Load model
-      const { model, min, max } = await loadModel(selectedModelId);
+      const loadedModelData = await loadModel(selectedModelId);
+      const model = loadedModelData.model;
+      const min = loadedModelData.min || {};
+      const max = loadedModelData.max || {};
       
-      const featureColumns = selectedModel.features;
+      const featureColumns = Array.isArray(selectedModel.features) ? selectedModel.features : [];
       
-      // Process in batches to avoid UI freezing
       const batchSize = 10;
       const batches = Math.ceil(dataToProcess.length / batchSize);
       let processedResults: any[] = [];
@@ -137,10 +135,8 @@ const BatchPredictionProcessor: React.FC<BatchPredictionProps> = ({ onPrediction
         const end = Math.min((i + 1) * batchSize, dataToProcess.length);
         const batch = dataToProcess.slice(start, end);
         
-        // Make predictions
         const predictions = makePredictions(model, batch, featureColumns, min, max);
         
-        // Process predictions
         const batchResults = batch.map((item, index) => {
           const predictionValue = predictions[index];
           const score = predictionValue;
@@ -165,7 +161,6 @@ const BatchPredictionProcessor: React.FC<BatchPredictionProps> = ({ onPrediction
         
         processedResults = [...processedResults, ...batchResults];
         
-        // Save predictions to database if user is logged in
         if (session) {
           for (const result of batchResults) {
             if (result.employeeId) {
@@ -182,7 +177,6 @@ const BatchPredictionProcessor: React.FC<BatchPredictionProps> = ({ onPrediction
           }
         }
         
-        // Update progress
         setProgress(Math.round(((i + 1) / batches) * 100));
         setResults(processedResults);
       }
@@ -209,7 +203,6 @@ const BatchPredictionProcessor: React.FC<BatchPredictionProps> = ({ onPrediction
     }
     
     if (format === 'csv') {
-      // Create CSV content
       const headers = ["Employee", "Department", "Risk Level", "Score", "Timestamp"];
       const csvContent = [
         headers.join(","),
@@ -224,7 +217,6 @@ const BatchPredictionProcessor: React.FC<BatchPredictionProps> = ({ onPrediction
         )
       ].join("\n");
       
-      // Create blob and download
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -286,11 +278,9 @@ const BatchPredictionProcessor: React.FC<BatchPredictionProps> = ({ onPrediction
             
             {mode === 'upload' ? (
               <div className="border rounded-lg p-4">
-                <FileUpload 
-                  onFileUpload={handleFileUpload}
-                  accept=".csv"
-                  label="Upload employee data CSV"
-                />
+                <FileUpload accept=".csv" label="Upload employee data CSV">
+                  {(file: File) => handleFileUpload(file)}
+                </FileUpload>
                 
                 {inputData.length > 0 && (
                   <div className="mt-4">

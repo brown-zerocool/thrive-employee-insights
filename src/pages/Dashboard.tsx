@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Card,
@@ -452,6 +451,7 @@ const Dashboard = () => {
         </div>
       </div>
       
+      {/* Fix the props for the modals */}
       <NewEmployeeModal 
         open={showNewEmployeeModal} 
         onOpenChange={setShowNewEmployeeModal} 
