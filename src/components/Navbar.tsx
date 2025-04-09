@@ -1,5 +1,6 @@
+
 import { Button } from "@/components/ui/button";
-import { UserProfileModal } from "@/components/UserProfileModal";
+import UserProfileModal from "@/components/UserProfileModal";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
 
@@ -8,7 +9,7 @@ import NotificationsSystem from "./NotificationsSystem";
 import { Settings } from "lucide-react";
 
 export const Navbar = () => {
-  const { isLoggedIn } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   return (
     <header className="bg-background border-b">
@@ -18,7 +19,7 @@ export const Navbar = () => {
             <span className="font-bold text-xl">RetainAI</span>
           </Link>
           <nav className="hidden md:flex items-center gap-6">
-            {isLoggedIn && (
+            {isAuthenticated && (
               <>
                 <Link to="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
                   Dashboard
@@ -37,7 +38,7 @@ export const Navbar = () => {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          {isLoggedIn ? (
+          {isAuthenticated ? (
             <>
               <NotificationsSystem />
               <Link to="/settings">

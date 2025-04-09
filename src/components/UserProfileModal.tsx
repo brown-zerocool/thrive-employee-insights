@@ -7,21 +7,18 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogTrigger
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera } from "lucide-react";
+import { Camera, User } from "lucide-react";
 
-interface UserProfileModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-const UserProfileModal = ({ open, onOpenChange }: UserProfileModalProps) => {
+const UserProfileModal = () => {
   const { profile, updateUserProfile } = useAuth();
+  const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     email: profile?.email || "",
     name: profile?.name || "",
@@ -66,7 +63,7 @@ const UserProfileModal = ({ open, onOpenChange }: UserProfileModalProps) => {
         role: formData.role,
         avatarUrl: avatarPreview || undefined
       });
-      onOpenChange(false);
+      setOpen(false);
     } catch (error) {
       console.error("Error updating profile:", error);
     } finally {
@@ -84,7 +81,19 @@ const UserProfileModal = ({ open, onOpenChange }: UserProfileModalProps) => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+          <Avatar className="h-8 w-8">
+            {avatarPreview ? (
+              <AvatarImage src={avatarPreview} alt={formData.name || "User"} />
+            ) : null}
+            <AvatarFallback className="bg-primary text-primary-foreground">
+              {formData.name ? getInitials(formData.name) : <User className="h-4 w-4" />}
+            </AvatarFallback>
+          </Avatar>
+        </Button>
+      </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Edit Profile</DialogTitle>
@@ -177,7 +186,7 @@ const UserProfileModal = ({ open, onOpenChange }: UserProfileModalProps) => {
             <Button 
               type="button" 
               variant="outline" 
-              onClick={() => onOpenChange(false)}
+              onClick={() => setOpen(false)}
               disabled={isSubmitting}
             >
               Cancel
