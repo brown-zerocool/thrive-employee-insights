@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,8 +12,24 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Settings, Bell, Shield, Workflow, Layout } from "lucide-react";
-import { UserPreferences } from "@/types/ml";
-import { fetchUserPreferences, saveUserPreferences } from "@/services/databaseService";
+
+interface UserPreferences {
+  id?: string;
+  user_id: string;
+  theme: "light" | "dark" | "system";
+  language: string;
+  notification_settings: {
+    email: boolean;
+    push: boolean;
+    high_risk_alerts: boolean;
+    weekly_digest: boolean;
+    model_training_complete: boolean;
+  };
+  risk_threshold: number;
+  default_departments: string[];
+  created_at?: string;
+  updated_at?: string;
+}
 
 const defaultPreferences: UserPreferences = {
   user_id: "",
@@ -46,7 +63,16 @@ const UserSettingsPanel: React.FC = () => {
 
   const loadUserPreferences = async () => {
     try {
-      const data = await fetchUserPreferences(userId);
+      const { data, error } = await supabase
+        .from("user_preferences")
+        .select("*")
+        .eq("user_id", userId)
+        .single();
+
+      if (error && error.code !== "PGRST116") {
+        // PGRST116 is the error code for "no rows found"
+        throw error;
+      }
 
       if (data) {
         setPreferences(data);
@@ -84,7 +110,7 @@ const UserSettingsPanel: React.FC = () => {
     }
   };
 
-  const handleSavePreferences = async () => {
+  const savePreferences = async () => {
     if (!userId) return;
 
     setIsSaving(true);
@@ -95,8 +121,12 @@ const UserSettingsPanel: React.FC = () => {
         updated_at: new Date().toISOString(),
       };
 
-      await saveUserPreferences(prefsToSave);
-      
+      const { error } = await supabase
+        .from("user_preferences")
+        .upsert(prefsToSave, { onConflict: "user_id" });
+
+      if (error) throw error;
+
       toast.success("Preferences saved successfully");
     } catch (error) {
       console.error("Error saving preferences:", error);
@@ -340,7 +370,7 @@ const UserSettingsPanel: React.FC = () => {
         </Tabs>
       </CardContent>
       <CardFooter className="flex justify-end">
-        <Button onClick={handleSavePreferences} disabled={isSaving}>
+        <Button onClick={savePreferences} disabled={isSaving}>
           {isSaving ? "Saving..." : "Save Preferences"}
         </Button>
       </CardFooter>

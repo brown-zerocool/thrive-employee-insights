@@ -8,8 +8,6 @@ import MLDashboard from "@/components/ml/MLDashboard";
 import BatchPredictionProcessor from "@/components/ml/BatchPredictionProcessor";
 import ModelComparisonTool from "@/components/ml/ModelComparisonTool";
 import MachineLearningPanel from "@/components/ml/MachineLearningPanel";
-import NotificationsSystem from "@/components/NotificationsSystem";
-import { Card } from "@/components/ui/card";
 
 const MLDashboardPage = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -17,8 +15,8 @@ const MLDashboardPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
-        {/* Header with breadcrumb and notifications */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+        {/* Breadcrumb */}
+        <div className="mb-6">
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
@@ -32,10 +30,6 @@ const MLDashboardPage = () => {
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
-          
-          <div className="mt-4 md:mt-0">
-            <NotificationsSystem />
-          </div>
         </div>
 
         {/* Header */}
@@ -80,9 +74,7 @@ const MLDashboardPage = () => {
           </TabsList>
           
           <TabsContent value="dashboard" className="space-y-6">
-            <Card className="p-6">
-              <MLDashboard />
-            </Card>
+            <MLDashboard />
           </TabsContent>
           
           <TabsContent value="train" className="space-y-6">

@@ -4,11 +4,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { Download, Filter, Search, User, Database, FileEdit, Trash, AlertCircle, ChevronRight, ChevronLeft } from "lucide-react";
-import { AuditLog } from "@/types/ml";
-import { fetchAuditLogs } from "@/services/databaseService";
+
+interface AuditLog {
+  id: string;
+  user_id: string;
+  action: "create" | "update" | "delete" | "predict" | "export" | "import" | "login" | "logout";
+  entity_type: "employee" | "model" | "prediction" | "data" | "user" | "system";
+  entity_id?: string;
+  details: Record<string, any>;
+  ip_address?: string;
+  created_at: string;
+  user_email?: string;
+}
 
 const AuditLogPanel = () => {
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -25,23 +36,47 @@ const AuditLogPanel = () => {
 
   useEffect(() => {
     if (session?.user) {
-      loadAuditLogs();
+      fetchAuditLogs();
     }
   }, [session, page, filter]);
 
-  const loadAuditLogs = async () => {
+  const fetchAuditLogs = async () => {
     setLoading(true);
     try {
-      const { data, count } = await fetchAuditLogs({
-        page,
-        pageSize,
-        action: filter.action || undefined,
-        entity_type: filter.entity_type || undefined,
-        searchTerm: filter.searchTerm || undefined
-      });
+      let query = supabase
+        .from("audit_logs")
+        .select("*, profiles!inner(email)", { count: "exact" });
+
+      // Apply filters
+      if (filter.action) {
+        query = query.eq("action", filter.action);
+      }
       
-      setLogs(data);
-      setTotalPages(Math.ceil(count / pageSize));
+      if (filter.entity_type) {
+        query = query.eq("entity_type", filter.entity_type);
+      }
+      
+      if (filter.searchTerm) {
+        query = query.or(`user_email.ilike.%${filter.searchTerm}%,details->>'name'.ilike.%${filter.searchTerm}%`);
+      }
+
+      // Pagination
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      const { data, count, error } = await query
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+
+      const logsWithEmail = data?.map(log => ({
+        ...log,
+        user_email: log.profiles?.email,
+      })) || [];
+
+      setLogs(logsWithEmail as AuditLog[]);
+      setTotalPages(Math.ceil((count || 0) / pageSize));
     } catch (error) {
       console.error("Error fetching audit logs:", error);
     } finally {
@@ -51,7 +86,7 @@ const AuditLogPanel = () => {
 
   const handleSearch = () => {
     setPage(1);
-    loadAuditLogs();
+    fetchAuditLogs();
   };
 
   const resetFilters = () => {
@@ -65,30 +100,43 @@ const AuditLogPanel = () => {
 
   const exportLogs = async () => {
     try {
-      setLoading(true);
-      // Get all logs with current filters but no pagination
-      const { data } = await fetchAuditLogs({
-        page: 1,
-        pageSize: 1000, // Large number to get all logs
-        action: filter.action || undefined,
-        entity_type: filter.entity_type || undefined,
-        searchTerm: filter.searchTerm || undefined
-      });
+      // Fetch all logs (without pagination)
+      let query = supabase
+        .from("audit_logs")
+        .select("*, profiles!inner(email)");
+
+      // Apply filters
+      if (filter.action) {
+        query = query.eq("action", filter.action);
+      }
       
+      if (filter.entity_type) {
+        query = query.eq("entity_type", filter.entity_type);
+      }
+      
+      if (filter.searchTerm) {
+        query = query.or(`profiles.email.ilike.%${filter.searchTerm}%,details->>'name'.ilike.%${filter.searchTerm}%`);
+      }
+
+      const { data, error } = await query.order("created_at", { ascending: false });
+
+      if (error) throw error;
+
       // Convert to CSV
-      const exportData = data.map(log => ({
+      const logsWithEmail = data?.map(log => ({
         ...log,
+        user_email: log.profiles?.email,
         details: JSON.stringify(log.details),
         created_at: new Date(log.created_at).toLocaleString(),
-      }));
+      })) || [];
 
       const headers = ["id", "user_email", "action", "entity_type", "entity_id", "details", "ip_address", "created_at"];
       const csvRows = [
         headers.join(","),
-        ...exportData.map(log => 
+        ...logsWithEmail.map(log => 
           headers.map(header => {
             const value = log[header as keyof typeof log];
-            return value ? `"${String(value).replace(/"/g, '""')}"` : "";
+            return value ? `"${value}"` : "";
           }).join(",")
         ),
       ];
@@ -106,8 +154,6 @@ const AuditLogPanel = () => {
       document.body.removeChild(link);
     } catch (error) {
       console.error("Error exporting logs:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
