@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,7 +47,6 @@ const RetentionPrediction = () => {
     },
   });
 
-  // Check if user is logged in
   useEffect(() => {
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession();
@@ -82,9 +80,7 @@ const RetentionPrediction = () => {
       if (results && results.length > 0) {
         setPredictions(results);
         
-        // Save predictions to database if user is logged in
         if (session) {
-          // Save each prediction to the database
           for (const prediction of results) {
             await savePredictionResult(
               {
@@ -94,8 +90,8 @@ const RetentionPrediction = () => {
                 reason: prediction.reason,
                 recommendation: prediction.recommendation
               },
-              null, // model ID - not applicable for AI predictions
-              null, // employee ID - would need to map employee names to IDs
+              null,
+              null,
               config.timeFrame,
               {
                 factors: Object.entries(config.includeFactors)

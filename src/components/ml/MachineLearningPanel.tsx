@@ -9,7 +9,13 @@ import { Slider } from "@/components/ui/slider";
 import { BrainCircuit, Save, TrendingUp, BarChart3, Trash } from "lucide-react";
 import { toast } from "sonner";
 import * as tf from '@tensorflow/tfjs';
-import { prepareDataForTraining, trainModel, evaluateModel, saveModel, listSavedModels } from "@/utils/mlService";
+import { 
+  prepareDataForTraining, 
+  trainModel, 
+  evaluateModel, 
+  saveModel, 
+  listSavedModels 
+} from "@/utils/mlService";
 import { listModelsFromSupabase, deleteModelFromSupabase } from "@/services/mlModelService";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -64,18 +70,20 @@ const MachineLearningPanel = ({ data }: MachineLearningPanelProps) => {
     const loadSavedModels = async () => {
       if (!session) {
         // If not logged in, only load from localStorage
-        const localModels = listSavedModels().map(name => ({
+        const localModels = await listSavedModels();
+        const formattedModels = localModels.map(name => ({
           name,
           source: 'local',
           created_at: 'Unknown'
         }));
-        setSavedModels(localModels);
+        setSavedModels(formattedModels);
         return;
       }
       
       try {
         const supabaseModels = await listModelsFromSupabase();
-        const localModels = listSavedModels().map(name => ({
+        const localModels = await listSavedModels();
+        const formattedLocalModels = localModels.map(name => ({
           name,
           source: 'local',
           created_at: 'Unknown'
@@ -87,7 +95,7 @@ const MachineLearningPanel = ({ data }: MachineLearningPanelProps) => {
             ...model,
             source: 'supabase'
           })),
-          ...localModels.filter(lm => 
+          ...formattedLocalModels.filter(lm => 
             !supabaseModels.some(sm => sm.name === lm.name)
           )
         ];
@@ -195,7 +203,8 @@ const MachineLearningPanel = ({ data }: MachineLearningPanelProps) => {
       // Refresh the models list
       if (session) {
         const supabaseModels = await listModelsFromSupabase();
-        const localModels = listSavedModels().map(name => ({
+        const localModels = await listSavedModels();
+        const formattedLocalModels = localModels.map(name => ({
           name,
           source: 'local',
           created_at: 'Unknown'
@@ -206,17 +215,18 @@ const MachineLearningPanel = ({ data }: MachineLearningPanelProps) => {
             ...model,
             source: 'supabase'
           })),
-          ...localModels.filter(lm => 
+          ...formattedLocalModels.filter(lm => 
             !supabaseModels.some(sm => sm.name === lm.name)
           )
         ]);
       } else {
-        const localModels = listSavedModels().map(name => ({
+        const localModels = await listSavedModels();
+        const formattedLocalModels = localModels.map(name => ({
           name,
           source: 'local',
           created_at: 'Unknown'
         }));
-        setSavedModels(localModels);
+        setSavedModels(formattedLocalModels);
       }
     } catch (error) {
       console.error("Error saving model:", error);

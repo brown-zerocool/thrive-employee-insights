@@ -1,155 +1,168 @@
-
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
-import { analyzeEmployeeData } from "@/utils/dataAnalysisUtils";
-import DataInsightsPanel from "@/components/DataInsightsPanel";
-
-// Import our components
-import FileUpload from "@/components/data-import/FileUpload";
-import ApiKeyInput from "@/components/data-import/ApiKeyInput";
-import AnalyzeButton from "@/components/data-import/AnalyzeButton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { FileUpload } from "@/components/ui/upload";
+import { useToast } from "@/components/ui/use-toast";
+import { ChartBar } from "lucide-react";
+import { parse } from "papaparse";
 
 interface DataImportModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onDataImport: (data: any[]) => void;
 }
 
-const DataImportModal = ({ open, onOpenChange }: DataImportModalProps) => {
+const DataImportModal = ({ onDataImport }: DataImportModalProps) => {
+  const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [step, setStep] = useState(1);
   const [csvData, setCsvData] = useState<any[] | null>(null);
-  const [insights, setInsights] = useState<any | null>(null);
-  const [apiKey, setApiKey] = useState<string>("");
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const { toast } = useToast();
 
-  const handleFileSelect = (selectedFile: File | null, parsedData: any[] | null) => {
-    setFile(selectedFile);
-    setCsvData(parsedData);
-    setInsights(null);
+  const parseCSV = (file: File) => {
+    parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        if (results.data && results.data.length > 0) {
+          setCsvData(results.data);
+          setStep(2);
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to parse CSV data.",
+            variant: "destructive",
+          });
+        }
+      },
+      error: (error) => {
+        console.error("CSV parsing error:", error);
+        toast({
+          title: "Error",
+          description: "An error occurred while parsing the CSV file.",
+          variant: "destructive",
+        });
+      },
+    });
   };
 
-  const handleAnalyzeData = async () => {
-    if (!csvData) {
-      toast.error("No data available to analyze");
-      return;
-    }
-    
-    if (!apiKey) {
-      toast.error("Please enter your OpenAI API key to analyze the data");
-      return;
-    }
-    
-    setIsAnalyzing(true);
-    
-    try {
-      const analysisResult = await analyzeEmployeeData(apiKey, csvData);
-      setInsights(analysisResult);
-      toast.success("Data analysis completed successfully");
-    } catch (error) {
-      console.error("Error analyzing data:", error);
-      toast.error("Failed to analyze data");
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!file) {
-      toast.error("Please select a file to upload");
-      return;
-    }
-    
-    setIsUploading(true);
-    
-    // Simulate API call for file upload
-    setTimeout(() => {
-      setIsUploading(false);
-      
-      if (insights) {
-        toast.success(`File "${file.name}" uploaded with insights`);
-      } else {
-        toast.success(`File "${file.name}" uploaded successfully`);
-      }
-      
-      onOpenChange(false);
-      setFile(null);
+  const handleConfirmImport = () => {
+    if (csvData && csvData.length > 0) {
+      onDataImport(csvData);
+      setOpen(false);
+      setStep(1);
       setCsvData(null);
-      setInsights(null);
-    }, 2000);
+      toast({
+        title: "Success",
+        description: "Data imported successfully.",
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "No data to import.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline">Import Data</Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Import & Analyze Employee Data</DialogTitle>
+          <DialogTitle>Import Employee Data</DialogTitle>
           <DialogDescription>
-            Upload a CSV file containing employee data for real-time analysis and predictions.
+            Import a CSV file to analyze and predict employee retention.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            {/* API Key Input */}
-            {csvData && (
-              <ApiKeyInput 
-                apiKey={apiKey}
-                setApiKey={setApiKey}
-              />
-            )}
+
+        {step === 1 && (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium">Upload Employee Data</h3>
+              <p className="text-sm text-muted-foreground">
+                Upload a CSV file with employee data to analyze retention risks.
+              </p>
+            </div>
             
-            {/* File Upload Component */}
-            <FileUpload 
-              onFileSelect={handleFileSelect}
-              file={file}
-              csvData={csvData}
+            <FileUpload
+              onUploadComplete={(file) => {
+                if (file) {
+                  setFile(file);
+                  parseCSV(file);
+                }
+              }}
+              accept=".csv"
+              maxSize={5242880}
+              label="Drop your CSV file here or click to browse"
             />
             
-            {/* Data Analysis Button */}
-            {csvData && !insights && (
-              <AnalyzeButton 
-                onClick={handleAnalyzeData}
-                disabled={isAnalyzing || !apiKey}
-                isAnalyzing={isAnalyzing}
-              />
-            )}
-            
-            {/* Insights Display */}
-            {insights && (
-              <div className="mt-4">
-                <DataInsightsPanel insights={insights} csvData={csvData} />
-              </div>
-            )}
+            <div className="flex items-center gap-2 text-sm">
+              <ChartBar className="h-4 w-4" />
+              <span>Only CSV files are supported (max 5MB)</span>
+            </div>
           </div>
-          <DialogFooter>
-            <Button 
-              type="button" 
-              variant="ghost" 
-              onClick={() => onOpenChange(false)}
-              disabled={isUploading || isAnalyzing}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!file || isUploading || isAnalyzing}>
-              {isUploading ? (
-                <>
-                  <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
-                  Uploading...
-                </>
-              ) : "Upload"}
-            </Button>
-          </DialogFooter>
-        </form>
+        )}
+
+        {step === 2 && (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium">Confirm Data Import</h3>
+              <p className="text-sm text-muted-foreground">
+                Review the data before importing.
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    {csvData && csvData.length > 0
+                      ? Object.keys(csvData[0]).map((header) => (
+                          <th
+                            key={header}
+                            className="px-6 py-3 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider"
+                          >
+                            {header}
+                          </th>
+                        ))
+                      : null}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {csvData
+                    ? csvData.slice(0, 5).map((row, index) => (
+                        <tr key={index}>
+                          {Object.values(row).map((cell, i) => (
+                            <td
+                              key={i}
+                              className="px-6 py-4 whitespace-no-wrap text-sm leading-5 text-gray-900"
+                            >
+                              {cell}
+                            </td>
+                          ))}
+                        </tr>
+                      ))
+                    : null}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex justify-between">
+              <Button variant="secondary" onClick={() => setStep(1)}>
+                Back to Upload
+              </Button>
+              <Button onClick={handleConfirmImport}>Confirm Import</Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

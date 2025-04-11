@@ -1,264 +1,231 @@
-
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BrainCircuit, MoveRight, BarChart } from "lucide-react";
+import { BrainCircuit, Save, TestTube2 } from "lucide-react";
 import { toast } from "sonner";
 import * as tf from '@tensorflow/tfjs';
 import { loadModel, savePredictionResult } from "@/utils/mlService";
-import { listModelsFromSupabase } from "@/services/mlModelService";
-import { supabase } from "@/integrations/supabase/client";
 
 interface PredictionPanelProps {
   features: string[];
-  modelName?: string;
 }
 
-const PredictionPanel = ({ features, modelName = "employee-retention-model" }: PredictionPanelProps) => {
-  const [featureValues, setFeatureValues] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(false);
-  const [prediction, setPrediction] = useState<number | null>(null);
-  const [selectedModelName, setSelectedModelName] = useState<string>(modelName);
-  const [availableModels, setAvailableModels] = useState<any[]>([]);
-  const [session, setSession] = useState<any>(null);
-  const [confidence, setConfidence] = useState<number>(0);
-  
-  // Check if user is logged in
+const PredictionPanel = ({ features }: PredictionPanelProps) => {
+  const [selectedModel, setSelectedModel] = useState<string | null>(null);
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [formValues, setFormValues] = useState<{ [key: string]: string }>({});
+  const [predictionResult, setPredictionResult] = useState<{ value: number; confidence: number; timestamp: string } | null>(null);
+  const [isPredicting, setIsPredicting] = useState<boolean>(false);
+  const [modelFeatures, setModelFeatures] = useState<string[]>([]);
+
   useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-    };
-    
-    checkSession();
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_, session) => {
-        setSession(session);
+    const fetchModels = async () => {
+      try {
+        const models = await (listSavedModels() as any);
+        setAvailableModels(models);
+      } catch (error) {
+        console.error("Error fetching models:", error);
+        toast.error("Failed to load models");
       }
-    );
-    
-    return () => subscription.unsubscribe();
+    };
+
+    fetchModels();
   }, []);
 
-  // Load available models
   useEffect(() => {
-    const loadAvailableModels = async () => {
-      try {
-        // Get models from localStorage first
-        const localStorageModels = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith('localstorage://') && !key.endsWith('_info')) {
-            localStorageModels.push({
-              id: null,
-              name: key.replace('localstorage://', ''),
-              source: 'local'
-            });
-          }
+    const loadModelFeatures = async () => {
+      if (selectedModel) {
+        try {
+          const loadedModel = await loadModel(selectedModel);
+          setModelFeatures(loadedModel.features);
+        } catch (error) {
+          console.error("Error loading model info:", error);
+          toast.error("Failed to load model info");
         }
-        
-        if (session) {
-          // If logged in, also get models from Supabase
-          const supabaseModels = await listModelsFromSupabase();
-          setAvailableModels([
-            ...supabaseModels.map(model => ({
-              ...model,
-              source: 'supabase'
-            })),
-            ...localStorageModels.filter(lm => 
-              !supabaseModels.some(sm => sm.name === lm.name)
-            )
-          ]);
-        } else {
-          setAvailableModels(localStorageModels);
-        }
-        
-        // Set initial selection if available
-        if (localStorageModels.length > 0) {
-          setSelectedModelName(localStorageModels[0].name);
-        }
-      } catch (error) {
-        console.error("Error loading models:", error);
       }
     };
-    
-    loadAvailableModels();
-  }, [session]);
-  
+
+    loadModelFeatures();
+  }, [selectedModel]);
+
   const handleInputChange = (feature: string, value: string) => {
-    const numValue = parseFloat(value);
-    setFeatureValues(prev => ({
-      ...prev,
-      [feature]: isNaN(numValue) ? 0 : numValue
-    }));
+    setFormValues({ ...formValues, [feature]: value });
   };
 
   const handlePredict = async () => {
-    if (!selectedModelName) {
-      toast.error("Please select a model first");
+    if (!selectedModel || !formValues) {
+      toast.error("Please select a model and enter feature values");
       return;
     }
-    
-    if (features.length === 0) {
-      toast.error("No feature columns defined");
-      return;
-    }
-    
-    setLoading(true);
-    
+
+    setIsPredicting(true);
+
     try {
-      const model = await loadModel(selectedModelName);
-      if (!model) {
-        throw new Error("Failed to load model");
+      const loadedModel = await loadModel(selectedModel);
+      
+      // Extract feature values in the correct order
+      const featureArray = [];
+      for (const feature of modelFeatures) {
+        featureArray.push(parseFloat(formValues[feature] || "0"));
       }
       
-      // Get min and max values for normalization
-      // In a real application, these should be stored with the model
-      const modelInfo = localStorage.getItem(`localstorage://${selectedModelName}_info`);
-      let min: tf.Tensor, max: tf.Tensor;
-      let modelFeatures: string[] = features;
+      // Make prediction
+      const inputTensor = tf.tensor2d([featureArray]);
       
-      if (modelInfo) {
-        const info = JSON.parse(modelInfo);
-        min = tf.tensor1d(info.min);
-        max = tf.tensor1d(info.max);
-        
-        // Use model's features if available
-        if (info.features && Array.isArray(info.features)) {
-          modelFeatures = info.features;
-        }
-      } else {
-        // Use default values if not found
-        min = tf.tensor1d(modelFeatures.map(() => 0));
-        max = tf.tensor1d(modelFeatures.map(() => 1));
-      }
+      // Normalize input using the model's min-max values
+      const minArray = modelFeatures.map(f => loadedModel.min[f] || 0);
+      const maxArray = modelFeatures.map(f => loadedModel.max[f] || 1);
       
-      // Create input tensor
-      const inputArray = modelFeatures.map(f => featureValues[f] || 0);
-      const inputTensor = tf.tensor2d([inputArray]);
+      const minTensor = tf.tensor1d(minArray);
+      const maxTensor = tf.tensor1d(maxArray);
       
-      // Normalize
-      const normalizedInput = inputTensor.sub(min).div(max.sub(min));
+      const normalizedInput = inputTensor.sub(minTensor).div(
+        maxTensor.sub(minTensor).add(tf.scalar(1e-6))
+      );
       
-      // Predict
-      const predictionTensor = model.predict(normalizedInput) as tf.Tensor;
+      // Get prediction
+      const predictionTensor = loadedModel.model.predict(normalizedInput) as tf.Tensor;
       const predictionValue = predictionTensor.dataSync()[0];
       
-      // Set prediction
-      setPrediction(predictionValue);
+      // Clean up tensors
+      inputTensor.dispose();
+      normalizedInput.dispose();
+      predictionTensor.dispose();
+      minTensor.dispose();
+      maxTensor.dispose();
       
-      // Calculate confidence (simple example - in a real application this would be more sophisticated)
-      const randomConfidence = 0.7 + Math.random() * 0.25;
-      setConfidence(randomConfidence);
+      // Set result
+      setPredictionResult({
+        value: predictionValue,
+        confidence: 0.85, // Placeholder - would need actual confidence calculation
+        timestamp: new Date().toISOString()
+      });
       
-      // Save prediction to database if user is logged in
-      if (session) {
-        const selectedModel = availableModels.find(m => m.name === selectedModelName);
-        const predictionData = {
-          value: predictionValue,
-          confidence: randomConfidence,
-          input_features: featureValues
-        };
-        
-        await savePredictionResult(
-          predictionData,
-          selectedModel?.id || null,
-          null, // employee ID would go here if predicting for a specific employee
-          "single_prediction",
-          modelFeatures.reduce((acc, feature) => {
-            acc[feature] = featureValues[feature] || 0;
-            return acc;
-          }, {})
-        );
-      }
-      
-      toast.success("Prediction generated!");
+      toast.success("Prediction completed");
     } catch (error) {
       console.error("Error making prediction:", error);
       toast.error("Failed to make prediction");
     } finally {
-      setLoading(false);
+      setIsPredicting(false);
+    }
+  };
+
+  const handleSavePrediction = async () => {
+    if (!predictionResult || !selectedModel) {
+      toast.error("No prediction to save");
+      return;
+    }
+    
+    try {
+      const saved = await savePredictionResult(
+        predictionResult,
+        selectedModel,
+        null // No specific employee ID for generic predictions
+      );
+      
+      if (saved) {
+        toast.success("Prediction saved successfully");
+      } else {
+        toast.error("Failed to save prediction");
+      }
+    } catch (error) {
+      console.error("Error saving prediction:", error);
+      toast.error("An error occurred while saving the prediction");
     }
   };
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <BarChart className="h-5 w-5 text-purple-500" />
-          Generate Predictions
-        </CardTitle>
-        <CardDescription>
-          Use a trained model to make predictions on new data
-        </CardDescription>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xl flex items-center gap-2">
+            <TestTube2 className="h-5 w-5 text-purple-500" />
+            Retention Prediction
+          </CardTitle>
+        </div>
+        <CardDescription>Predict employee retention using trained models</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div>
-          <Label htmlFor="modelSelect">Select Model</Label>
-          <Select 
-            value={selectedModelName} 
-            onValueChange={setSelectedModelName}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select a model" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableModels.map((model) => (
-                <SelectItem key={model.id || model.name} value={model.name}>
-                  {model.name} {model.source === 'supabase' ? '(Database)' : '(Local)'}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      
-        <div className="grid gap-4 sm:grid-cols-2">
-          {features.map(feature => (
-            <div key={feature} className="space-y-2">
-              <Label htmlFor={`feature-${feature}`}>{feature}</Label>
-              <Input 
-                id={`feature-${feature}`}
-                type="number"
-                value={featureValues[feature] || ""}
-                onChange={(e) => handleInputChange(feature, e.target.value)}
-                placeholder="0"
-              />
-            </div>
-          ))}
-        </div>
-        
-        <Button 
-          onClick={handlePredict} 
-          disabled={loading || features.length === 0 || !selectedModelName} 
-          className="w-full"
-        >
-          {loading ? (
-            <>
-              <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
-              Predicting...
-            </>
-          ) : (
-            <>
-              <BrainCircuit className="mr-2 h-4 w-4" />
-              Generate Prediction
-            </>
-          )}
-        </Button>
-        
-        {prediction !== null && (
-          <div className="mt-4 p-4 bg-primary/5 rounded-md border flex items-center justify-between">
-            <div>
-              <div className="text-sm text-muted-foreground">Prediction Result</div>
-              <div className="text-xl font-semibold">{prediction.toFixed(2)}</div>
-              <div className="text-xs text-muted-foreground">Confidence: {Math.round(confidence * 100)}%</div>
-            </div>
-            <MoveRight className="h-5 w-5 text-primary" />
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="modelSelect">Select Model</Label>
+            <Select onValueChange={setSelectedModel}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a trained model" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableModels.map((model) => (
+                  <SelectItem key={model} value={model}>
+                    {model}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        )}
+
+          {selectedModel && modelFeatures && (
+            <div className="space-y-4">
+              {modelFeatures.map((feature) => (
+                <div key={feature}>
+                  <Label htmlFor={`feature-${feature}`}>{feature}</Label>
+                  <Input
+                    type="number"
+                    id={`feature-${feature}`}
+                    placeholder={`Enter ${feature} value`}
+                    onChange={(e) => handleInputChange(feature, e.target.value)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <Button
+            onClick={handlePredict}
+            disabled={isPredicting || !selectedModel}
+            className="w-full"
+          >
+            {isPredicting ? (
+              <>
+                <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+                Predicting...
+              </>
+            ) : (
+              <>
+                <BrainCircuit className="mr-2 h-4 w-4" />
+                Predict Retention
+              </>
+            )}
+          </Button>
+
+          {predictionResult && (
+            <div className="bg-gray-50 p-4 rounded-md border">
+              <h4 className="font-medium mb-2">Prediction Result</h4>
+              <p className="text-sm">
+                Predicted Retention Score: {predictionResult.value.toFixed(4)}
+              </p>
+              <p className="text-xs text-gray-500">
+                Confidence: {predictionResult.confidence.toFixed(2)}
+              </p>
+              <p className="text-xs text-gray-500">
+                Timestamp: {predictionResult.timestamp}
+              </p>
+            </div>
+          )}
+
+          {predictionResult && (
+            <Button
+              onClick={handleSavePrediction}
+              variant="outline"
+              className="w-full"
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Save Prediction
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
