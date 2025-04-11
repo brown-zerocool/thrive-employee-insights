@@ -1,5 +1,4 @@
-
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, fromAuditLogs } from "@/integrations/supabase/customClient";
 
 type AuditAction = 
   | "create" 
@@ -46,8 +45,7 @@ export const logAuditEvent = async ({
     // Get the IP address (this would typically be handled by the server)
     const ip_address = "127.0.0.1"; // Placeholder for client-side logging
     
-    const { error } = await supabase
-      .from("audit_logs")
+    const { error } = await fromAuditLogs()
       .insert({
         user_id: currentUserId,
         action,

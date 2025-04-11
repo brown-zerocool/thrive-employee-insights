@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, fromAuditLogs, fromProfiles } from "@/integrations/supabase/customClient";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { Download, Filter, Search, User, Database, FileEdit, Trash, AlertCircle, ChevronRight, ChevronLeft } from "lucide-react";
@@ -43,9 +42,10 @@ const AuditLogPanel = () => {
   const fetchAuditLogs = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from("audit_logs")
-        .select("*, profiles!inner(email)", { count: "exact" });
+      let query = fromAuditLogs()
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range((page - 1) * pageSize, page * pageSize - 1);
 
       // Apply filters
       if (filter.action) {
@@ -56,27 +56,42 @@ const AuditLogPanel = () => {
         query = query.eq("entity_type", filter.entity_type);
       }
       
-      if (filter.searchTerm) {
-        query = query.or(`user_email.ilike.%${filter.searchTerm}%,details->>'name'.ilike.%${filter.searchTerm}%`);
-      }
-
-      // Pagination
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-
-      const { data, count, error } = await query
-        .order("created_at", { ascending: false })
-        .range(from, to);
-
+      // We'll handle search filtering differently since it involves multiple fields
+      const { data: auditLogs, error, count } = await query;
+      
       if (error) throw error;
-
-      const logsWithEmail = data?.map(log => ({
+      
+      // Get user emails for the logs
+      const userIds = Array.from(new Set(auditLogs?.map(log => log.user_id) || []));
+      const userEmailsMap = new Map<string, string>();
+      
+      if (userIds.length > 0) {
+        const { data: profiles } = await fromProfiles()
+          .select('id, email')
+          .in('id', userIds);
+          
+        profiles?.forEach(profile => {
+          userEmailsMap.set(profile.id, profile.email);
+        });
+      }
+      
+      // Enrich logs with user emails
+      const logsWithEmail = auditLogs?.map(log => ({
         ...log,
-        user_email: log.profiles?.email,
+        user_email: userEmailsMap.get(log.user_id) || 'Unknown User'
       })) || [];
+      
+      // Apply text search filtering client-side 
+      // (in a production app, this should be done in the database)
+      const filteredLogs = filter.searchTerm 
+        ? logsWithEmail.filter(log => 
+            log.user_email?.toLowerCase().includes(filter.searchTerm.toLowerCase()) ||
+            (log.details && JSON.stringify(log.details).toLowerCase().includes(filter.searchTerm.toLowerCase()))
+          )
+        : logsWithEmail;
 
-      setLogs(logsWithEmail as AuditLog[]);
-      setTotalPages(Math.ceil((count || 0) / pageSize));
+      setLogs(filteredLogs as AuditLog[]);
+      setTotalPages(Math.ceil((count || filteredLogs.length) / pageSize));
     } catch (error) {
       console.error("Error fetching audit logs:", error);
     } finally {
@@ -101,9 +116,7 @@ const AuditLogPanel = () => {
   const exportLogs = async () => {
     try {
       // Fetch all logs (without pagination)
-      let query = supabase
-        .from("audit_logs")
-        .select("*, profiles!inner(email)");
+      let query = fromAuditLogs().select('*');
 
       // Apply filters
       if (filter.action) {
@@ -113,27 +126,45 @@ const AuditLogPanel = () => {
       if (filter.entity_type) {
         query = query.eq("entity_type", filter.entity_type);
       }
-      
-      if (filter.searchTerm) {
-        query = query.or(`profiles.email.ilike.%${filter.searchTerm}%,details->>'name'.ilike.%${filter.searchTerm}%`);
-      }
 
-      const { data, error } = await query.order("created_at", { ascending: false });
+      const { data: auditLogs, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
 
+      // Get user emails for the logs
+      const userIds = Array.from(new Set(auditLogs?.map(log => log.user_id) || []));
+      const userEmailsMap = new Map<string, string>();
+      
+      if (userIds.length > 0) {
+        const { data: profiles } = await fromProfiles()
+          .select('id, email')
+          .in('id', userIds);
+          
+        profiles?.forEach(profile => {
+          userEmailsMap.set(profile.id, profile.email);
+        });
+      }
+
       // Convert to CSV
-      const logsWithEmail = data?.map(log => ({
+      const logsWithEmail = auditLogs?.map(log => ({
         ...log,
-        user_email: log.profiles?.email,
+        user_email: userEmailsMap.get(log.user_id) || 'Unknown User',
         details: JSON.stringify(log.details),
         created_at: new Date(log.created_at).toLocaleString(),
       })) || [];
 
+      // Apply text search filtering client-side
+      const filteredLogs = filter.searchTerm 
+        ? logsWithEmail.filter(log => 
+            log.user_email?.toLowerCase().includes(filter.searchTerm.toLowerCase()) ||
+            log.details.toLowerCase().includes(filter.searchTerm.toLowerCase())
+          )
+        : logsWithEmail;
+
       const headers = ["id", "user_email", "action", "entity_type", "entity_id", "details", "ip_address", "created_at"];
       const csvRows = [
         headers.join(","),
-        ...logsWithEmail.map(log => 
+        ...filteredLogs.map(log => 
           headers.map(header => {
             const value = log[header as keyof typeof log];
             return value ? `"${value}"` : "";
@@ -315,7 +346,7 @@ const AuditLogPanel = () => {
                       {log.user_email || "System"}
                     </td>
                     <td className="px-4 py-4 text-sm">
-                      {log.details.name || log.details.description || JSON.stringify(log.details).substring(0, 50)}
+                      {log.details?.name || log.details?.description || JSON.stringify(log.details).substring(0, 50)}
                       {JSON.stringify(log.details).length > 50 && "..."}
                     </td>
                     <td className="px-4 py-4 text-sm hidden lg:table-cell">

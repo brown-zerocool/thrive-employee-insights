@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,6 +6,12 @@ import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tool
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, TrendingUp, TrendingDown, Users } from "lucide-react";
+import { Database } from "@/integrations/supabase/types";
+
+type PredictionResult = {
+  risk: "high" | "medium" | "low";
+  [key: string]: any;
+};
 
 interface ModelPerformanceData {
   date: string;
@@ -79,17 +84,20 @@ const PerformanceDashboard = () => {
         avgConfidence: 0
       };
 
-      const highRisk = predictions.filter(p => 
-        p.prediction_result?.risk === "high"
-      ).length;
+      const highRisk = predictions.filter(p => {
+        const result = p.prediction_result as PredictionResult;
+        return result && result.risk === "high";
+      }).length;
       
-      const mediumRisk = predictions.filter(p => 
-        p.prediction_result?.risk === "medium"
-      ).length;
+      const mediumRisk = predictions.filter(p => {
+        const result = p.prediction_result as PredictionResult;
+        return result && result.risk === "medium";
+      }).length;
       
-      const lowRisk = predictions.filter(p => 
-        p.prediction_result?.risk === "low"
-      ).length;
+      const lowRisk = predictions.filter(p => {
+        const result = p.prediction_result as PredictionResult;
+        return result && result.risk === "low";
+      }).length;
       
       const confidenceSum = predictions.reduce(
         (sum, p) => sum + (p.confidence_score || 0), 0

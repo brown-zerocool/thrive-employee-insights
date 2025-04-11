@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { fromUserPreferences, fromEmployees } from "@/integrations/supabase/customClient";
 import { useAuth } from "@/hooks/useAuth";
 import { Settings, Bell, Shield, Workflow, Layout } from "lucide-react";
 
@@ -63,9 +62,8 @@ const UserSettingsPanel: React.FC = () => {
 
   const loadUserPreferences = async () => {
     try {
-      const { data, error } = await supabase
-        .from("user_preferences")
-        .select("*")
+      const { data, error } = await fromUserPreferences()
+        .select('*')
         .eq("user_id", userId)
         .single();
 
@@ -75,7 +73,7 @@ const UserSettingsPanel: React.FC = () => {
       }
 
       if (data) {
-        setPreferences(data);
+        setPreferences(data as UserPreferences);
         setSelectedDepartments(data.default_departments || []);
       } else {
         // Create default preferences
@@ -92,9 +90,8 @@ const UserSettingsPanel: React.FC = () => {
 
   const loadAvailableDepartments = async () => {
     try {
-      const { data, error } = await supabase
-        .from("employees")
-        .select("department")
+      const { data, error } = await fromEmployees()
+        .select('department')
         .not("department", "is", null);
 
       if (error) throw error;
@@ -121,9 +118,8 @@ const UserSettingsPanel: React.FC = () => {
         updated_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from("user_preferences")
-        .upsert(prefsToSave, { onConflict: "user_id" });
+      const { error } = await fromUserPreferences()
+        .upsert(prefsToSave as any, { onConflict: "user_id" });
 
       if (error) throw error;
 

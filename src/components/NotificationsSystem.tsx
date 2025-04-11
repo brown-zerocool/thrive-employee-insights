@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from "react";
 import { Bell, BellOff, X, Check, Info, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, fromNotifications } from "@/integrations/supabase/customClient";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -41,8 +40,7 @@ const NotificationsSystem = () => {
     if (!session?.user?.id) return;
     
     try {
-      const { data, error } = await supabase
-        .from('notifications')
+      const { data, error } = await fromNotifications()
         .select('*')
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
@@ -50,7 +48,6 @@ const NotificationsSystem = () => {
       
       if (error) throw error;
       
-      // Type assertion to ensure the data conforms to our Notification interface
       setNotifications(data as Notification[] || []);
     } catch (error) {
       console.error("Error fetching notifications:", error);
@@ -98,8 +95,7 @@ const NotificationsSystem = () => {
 
   const markAsRead = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('notifications')
+      const { error } = await fromNotifications()
         .update({ read: true })
         .eq('id', id);
       
@@ -115,8 +111,7 @@ const NotificationsSystem = () => {
 
   const markAllAsRead = async () => {
     try {
-      const { error } = await supabase
-        .from('notifications')
+      const { error } = await fromNotifications()
         .update({ read: true })
         .eq('user_id', session?.user?.id)
         .eq('read', false);
@@ -135,8 +130,7 @@ const NotificationsSystem = () => {
 
   const deleteNotification = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('notifications')
+      const { error } = await fromNotifications()
         .delete()
         .eq('id', id);
       
@@ -150,8 +144,7 @@ const NotificationsSystem = () => {
 
   const deleteAllNotifications = async () => {
     try {
-      const { error } = await supabase
-        .from('notifications')
+      const { error } = await fromNotifications()
         .delete()
         .eq('user_id', session?.user?.id);
       
