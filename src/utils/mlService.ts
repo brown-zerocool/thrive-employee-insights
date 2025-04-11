@@ -8,6 +8,7 @@ export interface ModelWithNormalization {
   model: tf.LayersModel;
   min: Record<string, number>;
   max: Record<string, number>;
+  featureNames?: string[];
 }
 
 export const loadModel = async (modelId: string): Promise<ModelWithNormalization> => {
@@ -26,13 +27,14 @@ export const loadModel = async (modelId: string): Promise<ModelWithNormalization
   const modelDefinition = modelJson.modelDefinition;
   const min = modelJson.min || {};
   const max = modelJson.max || {};
+  const featureNames = modelJson.featureNames || [];
   
   // Load model from json
   const model = await tf.loadLayersModel(
     tf.io.fromMemory(modelDefinition)
   );
   
-  return { model, min, max };
+  return { model, min, max, featureNames };
 };
 
 /**
@@ -46,8 +48,8 @@ export const prepareDataForTraining = (
   features: tf.Tensor2D; 
   targets: tf.Tensor1D; 
   featureNames: string[]; 
-  min: tf.Tensor; 
-  max: tf.Tensor 
+  min: Record<string, number>; 
+  max: Record<string, number>;
 } => {
   // Extract features and targets
   const featureData: number[][] = data.map(row => {
@@ -64,6 +66,18 @@ export const prepareDataForTraining = (
   const featureMin = featuresTensor.min(0);
   const featureMax = featuresTensor.max(0);
   
+  const minValues: Record<string, number> = {};
+  const maxValues: Record<string, number> = {};
+  
+  // Extract min and max values and associate with feature names
+  const minArr = featureMin.arraySync() as number[];
+  const maxArr = featureMax.arraySync() as number[];
+  
+  featureColumns.forEach((name, i) => {
+    minValues[name] = minArr[i];
+    maxValues[name] = maxArr[i];
+  });
+  
   const normalizedFeatures = featuresTensor.sub(featureMin).div(
     featureMax.sub(featureMin).add(tf.scalar(1e-6))
   );
@@ -72,8 +86,8 @@ export const prepareDataForTraining = (
     features: normalizedFeatures as tf.Tensor2D,
     targets: targetsTensor,
     featureNames: featureColumns,
-    min: featureMin,
-    max: featureMax
+    min: minValues,
+    max: maxValues
   };
 };
 
@@ -205,7 +219,9 @@ export const saveModel = async (
   model: tf.LayersModel, 
   modelName: string, 
   features: string[],
-  metrics?: { mse: number, rmse: number, r2: number }
+  metrics?: { mse: number, rmse: number, r2: number },
+  min?: Record<string, number>,
+  max?: Record<string, number>
 ): Promise<string | null> => {
   try {
     // First save to localStorage
@@ -216,7 +232,9 @@ export const saveModel = async (
       name: modelName,
       modelType: "neural_network",
       features: features,
-      metrics
+      metrics,
+      min,
+      max
     });
     
     toast.success(`Model "${modelName}" saved successfully`);
@@ -233,8 +251,8 @@ export const saveModel = async (
  */
 export const savePredictionResult = async (
   result: any,
-  modelId: string,
-  employeeId: string
+  modelId: string | null,
+  employeeId: string | null
 ) => {
   try {
     const { error } = await supabase
@@ -272,4 +290,3 @@ export const listSavedModels = async (): Promise<string[]> => {
     return [];
   }
 };
-

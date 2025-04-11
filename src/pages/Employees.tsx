@@ -20,6 +20,11 @@ const Employees = () => {
   const handleCreateEmployee = () => {
     setIsNewEmployeeModalOpen(true);
   };
+  
+  const handleDataImport = (data: any[]) => {
+    console.log("Imported data:", data);
+    toast.success(`Successfully imported ${data.length} employee records`);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -124,10 +129,7 @@ const Employees = () => {
         </div>
 
         {/* Import Modal */}
-        <DataImportModal 
-          open={isImportModalOpen}
-          onOpenChange={setIsImportModalOpen}
-        />
+        <DataImportModal onDataImport={handleDataImport} />
 
         {/* New Employee Modal */}
         <NewEmployeeModal

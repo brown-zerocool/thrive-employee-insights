@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import {
   Dialog,
@@ -32,7 +33,7 @@ const DataImportModal = ({ onDataImport }: DataImportModalProps) => {
       skipEmptyLines: true,
       complete: (results) => {
         if (results.data && results.data.length > 0) {
-          setCsvData(results.data);
+          setCsvData(results.data as any[]);
           setStep(2);
         } else {
           toast({
@@ -146,7 +147,7 @@ const DataImportModal = ({ onDataImport }: DataImportModalProps) => {
                               key={i}
                               className="px-6 py-4 whitespace-no-wrap text-sm leading-5 text-gray-900"
                             >
-                              {cell}
+                              {String(cell)}
                             </td>
                           ))}
                         </tr>

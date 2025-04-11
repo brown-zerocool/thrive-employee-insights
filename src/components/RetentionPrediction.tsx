@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -91,14 +92,7 @@ const RetentionPrediction = () => {
                 recommendation: prediction.recommendation
               },
               null,
-              null,
-              config.timeFrame,
-              {
-                factors: Object.entries(config.includeFactors)
-                  .filter(([_, included]) => included)
-                  .map(([factor]) => factor),
-                department: config.department || 'all'
-              }
+              null
             );
           }
         }
