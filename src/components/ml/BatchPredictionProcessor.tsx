@@ -9,8 +9,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import * as tf from '@tensorflow/tfjs';
-import { loadModel, listSavedModels } from "@/utils/mlService";
-import { makePredictions, savePredictionResult } from "@/utils/mlService";
+import { loadModel, listSavedModels, makePredictions, savePredictionResult } from "@/utils/mlService";
 import FileUpload from "@/components/data-import/FileUpload";
 import { parseCSV } from "@/utils/dataAnalysisUtils";
 
@@ -123,9 +122,9 @@ const BatchPredictionProcessor: React.FC<BatchPredictionProps> = ({ onPrediction
       }
       
       // Load model
-      const { model, min, max } = await loadModel(selectedModelId);
+      const loadedModel = await loadModel(selectedModelId);
       
-      const featureColumns = selectedModel.features;
+      const featureColumns = selectedModel.features || [];
       
       // Process in batches to avoid UI freezing
       const batchSize = 10;
@@ -138,7 +137,13 @@ const BatchPredictionProcessor: React.FC<BatchPredictionProps> = ({ onPrediction
         const batch = dataToProcess.slice(start, end);
         
         // Make predictions
-        const predictions = makePredictions(model, batch, featureColumns, min, max);
+        const predictions = makePredictions(
+          loadedModel.model, 
+          batch, 
+          featureColumns, 
+          loadedModel.normalization.min, 
+          loadedModel.normalization.max
+        );
         
         // Process predictions
         const batchResults = batch.map((item, index) => {
@@ -172,8 +177,7 @@ const BatchPredictionProcessor: React.FC<BatchPredictionProps> = ({ onPrediction
               await savePredictionResult(
                 {
                   score: result.score,
-                  risk: result.risk,
-                  timestamp: result.timestamp,
+                  risk_level: result.risk,
                 },
                 selectedModelId,
                 result.employeeId

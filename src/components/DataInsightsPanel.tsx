@@ -1,4 +1,3 @@
-
 import {
   Card,
   CardContent,
@@ -8,7 +7,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, TrendingUp, AlertCircle, Users } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MachineLearningPanel from "@/components/ml/MachineLearningPanel";
 import PredictionPanel from "@/components/ml/PredictionPanel";
@@ -38,7 +37,7 @@ const DataInsightsPanel = ({ insights, csvData }: DataInsightsProps) => {
   const [features, setFeatures] = useState<string[]>([]);
   
   // Extract potential feature columns from CSV data
-  useState(() => {
+  useEffect(() => {
     if (csvData && csvData.length > 0) {
       const numericColumns = Object.keys(csvData[0]).filter(key => {
         const val = csvData[0][key];
@@ -46,7 +45,7 @@ const DataInsightsPanel = ({ insights, csvData }: DataInsightsProps) => {
       });
       setFeatures(numericColumns);
     }
-  });
+  }, [csvData]);
 
   return (
     <Tabs defaultValue="ai-insights" onValueChange={setActiveTab}>
@@ -163,7 +162,7 @@ const DataInsightsPanel = ({ insights, csvData }: DataInsightsProps) => {
       </TabsContent>
       
       <TabsContent value="ml-train">
-        <MachineLearningPanel data={csvData} />
+        <MachineLearningPanel csvData={csvData} />
       </TabsContent>
       
       <TabsContent value="ml-predict">

@@ -1,4 +1,3 @@
-
 import * as tf from "@tensorflow/tfjs";
 
 // Types
@@ -138,7 +137,7 @@ export const trainModel = async (params: TrainModelParams): Promise<tf.LayersMod
     model = tf.sequential();
     
     // Add input layer
-    model.add(tf.layers.dense({
+    model.layers.push(tf.layers.dense({
       units: modelParams.hiddenLayers[0],
       activation: 'relu',
       inputShape: [trainX.shape[1]],
@@ -146,14 +145,14 @@ export const trainModel = async (params: TrainModelParams): Promise<tf.LayersMod
     
     // Add hidden layers
     for (let i = 1; i < modelParams.hiddenLayers.length; i++) {
-      model.add(tf.layers.dense({
+      model.layers.push(tf.layers.dense({
         units: modelParams.hiddenLayers[i],
         activation: 'relu',
       }));
     }
     
     // Add output layer
-    model.add(tf.layers.dense({
+    model.layers.push(tf.layers.dense({
       units: 1,
       activation: 'sigmoid',
     }));
@@ -180,13 +179,13 @@ export const trainModel = async (params: TrainModelParams): Promise<tf.LayersMod
     // we'll use a simpler neural network as a substitute
     model = tf.sequential();
     
-    model.add(tf.layers.dense({
+    model.layers.push(tf.layers.dense({
       units: 10,
       activation: 'relu',
       inputShape: [trainX.shape[1]],
     }));
     
-    model.add(tf.layers.dense({
+    model.layers.push(tf.layers.dense({
       units: 1,
       activation: 'sigmoid',
     }));
@@ -407,4 +406,63 @@ export const deleteModel = async (name: string): Promise<void> => {
     const filteredModels = existingModels.filter((m: any) => m.name !== name);
     localStorage.setItem('savedModels', JSON.stringify(filteredModels));
   }
+};
+
+// Additional functions needed for other components
+export const savePredictionResult = async (
+  prediction: {
+    employee_name?: string;
+    score: number;
+    risk_level: string;
+    reason?: string;
+    recommendation?: string;
+  },
+  modelId: string | null,
+  employeeId: string | null
+): Promise<string | null> => {
+  try {
+    // In a real application, this would save to a database
+    console.log('Saving prediction:', prediction, 'for employee:', employeeId, 'using model:', modelId);
+    
+    // For demo purposes, just return a mock ID
+    return 'pred_' + Math.random().toString(36).substr(2, 9);
+  } catch (error) {
+    console.error('Error saving prediction result:', error);
+    return null;
+  }
+};
+
+// Function to make predictions with a model
+export const makePredictions = (
+  model: tf.LayersModel,
+  data: any[],
+  featureNames: string[],
+  min: Record<string, number>,
+  max: Record<string, number>
+): number[] => {
+  // Extract features from data
+  const features = data.map(row => {
+    return featureNames.map(feature => {
+      const value = row[feature] || 0;
+      // Normalize using the same normalization used during training
+      return max[feature] - min[feature] !== 0
+        ? (value - min[feature]) / (max[feature] - min[feature])
+        : 0;
+    });
+  });
+  
+  // Convert to tensor
+  const inputTensor = tf.tensor2d(features);
+  
+  // Make prediction
+  const predictions = model.predict(inputTensor) as tf.Tensor;
+  
+  // Convert to array
+  const result = Array.from(predictions.dataSync());
+  
+  // Clean up tensors
+  inputTensor.dispose();
+  predictions.dispose();
+  
+  return result;
 };

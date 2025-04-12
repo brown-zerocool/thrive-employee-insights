@@ -9,22 +9,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Info, BrainCircuit, Layers, BarChart4, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { prepareDataForTraining, trainModel, evaluateModel } from "@/utils/mlService";
+import { prepareDataForTraining, trainModel, evaluateModel, saveModel } from "@/utils/mlService";
 import * as tf from "@tensorflow/tfjs";
 
 interface MachineLearningPanelProps {
-  csvData?: any[];
+  csvData?: any[] | null;
   onModelTrained?: (model: any) => void;
 }
 
 const MachineLearningPanel: React.FC<MachineLearningPanelProps> = ({ csvData, onModelTrained }) => {
   const { toast } = useToast();
   const [modelType, setModelType] = useState<string>("neuralNetwork");
-  const [modelParams, setModelParams] = useState({
+  const [modelParams, setModelParams] = useState<{
+    learningRate?: number;
+    epochs?: number;
+    hiddenLayers?: number[];
+    trees?: number;
+    maxDepth?: number;
+    featureSplit?: number;
+    rounds?: number;
+  }>({
     learningRate: 0.01,
     epochs: 50,
     hiddenLayers: [10, 5],
   });
+  
   const [trainingProgress, setTrainingProgress] = useState(0);
   const [isTraining, setIsTraining] = useState(false);
   const [modelMetrics, setModelMetrics] = useState<any>(null);
@@ -90,7 +99,7 @@ const MachineLearningPanel: React.FC<MachineLearningPanelProps> = ({ csvData, on
         params: modelParams,
         onEpochEnd: (epoch: number, logs: any) => {
           // Calculate progress during training
-          const epochProgress = Math.round((epoch / modelParams.epochs) * 60);
+          const epochProgress = Math.round((epoch / (modelParams.epochs || 50)) * 60);
           setTrainingProgress(20 + epochProgress);
         },
       });
