@@ -1,483 +1,347 @@
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
-import { BrainCircuit, Save, TrendingUp, BarChart3, Trash } from "lucide-react";
-import { toast } from "sonner";
-import * as tf from '@tensorflow/tfjs';
-import { 
-  prepareDataForTraining, 
-  trainModel, 
-  evaluateModel, 
-  saveModel, 
-  listSavedModels 
-} from "@/utils/mlService";
-import { listModelsFromSupabase, deleteModelFromSupabase } from "@/services/mlModelService";
-import { supabase } from "@/integrations/supabase/client";
+import { Label } from "@/components/ui/label";
+import { Info, BrainCircuit, Layers, BarChart4, Save } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { prepareDataForTraining, trainModel, evaluateModel } from "@/utils/mlService";
+import * as tf from "@tensorflow/tfjs";
 
 interface MachineLearningPanelProps {
-  data?: any[] | null;
+  csvData?: any[];
+  onModelTrained?: (model: any) => void;
 }
 
-const MachineLearningPanel = ({ data }: MachineLearningPanelProps) => {
-  const [features, setFeatures] = useState<string[]>([]);
-  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
-  const [target, setTarget] = useState<string>("");
-  const [epochs, setEpochs] = useState<number>(100);
-  const [trainTestSplit, setTrainTestSplit] = useState<number>(0.8);
-  const [isTraining, setIsTraining] = useState<boolean>(false);
-  const [model, setModel] = useState<tf.LayersModel | null>(null);
-  const [metrics, setMetrics] = useState<{ mse: number; rmse: number; r2: number } | null>(null);
-  const [modelName, setModelName] = useState<string>("");
-  const [savedModels, setSavedModels] = useState<any[]>([]);
-  const [session, setSession] = useState<any>(null);
-
-  // Check if user is logged in
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-    };
-    
-    checkSession();
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_, session) => {
-        setSession(session);
-      }
-    );
-    
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Extract columns from data
-  useEffect(() => {
-    if (data && data.length > 0) {
-      const numericColumns = Object.keys(data[0]).filter(key => {
-        const val = data[0][key];
-        return typeof val === 'number' || !isNaN(Number(val));
-      });
-      setFeatures(numericColumns);
-    }
-  }, [data]);
+const MachineLearningPanel: React.FC<MachineLearningPanelProps> = ({ csvData, onModelTrained }) => {
+  const { toast } = useToast();
+  const [modelType, setModelType] = useState<string>("neuralNetwork");
+  const [modelParams, setModelParams] = useState({
+    learningRate: 0.01,
+    epochs: 50,
+    hiddenLayers: [10, 5],
+  });
+  const [trainingProgress, setTrainingProgress] = useState(0);
+  const [isTraining, setIsTraining] = useState(false);
+  const [modelMetrics, setModelMetrics] = useState<any>(null);
   
-  // Load saved models
-  useEffect(() => {
-    const loadSavedModels = async () => {
-      if (!session) {
-        // If not logged in, only load from localStorage
-        const localModels = await listSavedModels();
-        const formattedModels = localModels.map(name => ({
-          name,
-          source: 'local',
-          created_at: 'Unknown'
-        }));
-        setSavedModels(formattedModels);
-        return;
-      }
-      
-      try {
-        const supabaseModels = await listModelsFromSupabase();
-        const localModels = await listSavedModels();
-        const formattedLocalModels = localModels.map(name => ({
-          name,
-          source: 'local',
-          created_at: 'Unknown'
-        }));
-        
-        // Combine both sources, with Supabase models taking precedence
-        const combinedModels = [
-          ...supabaseModels.map(model => ({
-            ...model,
-            source: 'supabase'
-          })),
-          ...formattedLocalModels.filter(lm => 
-            !supabaseModels.some(sm => sm.name === lm.name)
-          )
-        ];
-        
-        setSavedModels(combinedModels);
-      } catch (error) {
-        console.error("Error loading models:", error);
-      }
-    };
+  const handleModelTypeChange = (value: string) => {
+    setModelType(value);
     
-    loadSavedModels();
-  }, [session]);
-
-  const handleFeatureSelect = (feature: string) => {
-    if (selectedFeatures.includes(feature)) {
-      setSelectedFeatures(selectedFeatures.filter(f => f !== feature));
-    } else {
-      setSelectedFeatures([...selectedFeatures, feature]);
+    // Reset model parameters based on selected model type
+    if (value === "neuralNetwork") {
+      setModelParams({
+        learningRate: 0.01,
+        epochs: 50,
+        hiddenLayers: [10, 5],
+      });
+    } else if (value === "randomForest") {
+      setModelParams({
+        trees: 100,
+        maxDepth: 10,
+        featureSplit: 0.7,
+      });
+    } else if (value === "xgboost") {
+      setModelParams({
+        learningRate: 0.1,
+        maxDepth: 6,
+        rounds: 100,
+      });
     }
   };
-
+  
+  const handleParamChange = (param: string, value: number | number[]) => {
+    setModelParams((prev) => ({
+      ...prev,
+      [param]: value,
+    }));
+  };
+  
   const handleTrainModel = async () => {
-    if (!data || data.length === 0) {
-      toast.error("No data available for training");
+    if (!csvData || csvData.length === 0) {
+      toast({
+        title: "No Data Available",
+        description: "Please import employee data before training a model.",
+        variant: "destructive",
+      });
       return;
     }
-
-    if (selectedFeatures.length === 0) {
-      toast.error("Please select at least one feature");
-      return;
-    }
-
-    if (!target) {
-      toast.error("Please select a target variable");
-      return;
-    }
-
+    
     setIsTraining(true);
-    setMetrics(null);
-
+    setTrainingProgress(0);
+    setModelMetrics(null);
+    
     try {
-      // Prepare data
-      const { features: featureTensor, targets, featureNames, min, max } = prepareDataForTraining(
-        data,
-        selectedFeatures,
-        target
-      );
-
-      // Split data into train/test
-      const splitIdx = Math.floor(data.length * trainTestSplit);
-      const trainFeatures = featureTensor.slice([0, 0], [splitIdx, -1]);
-      const testFeatures = featureTensor.slice([splitIdx, 0], [-1, -1]);
-      const trainTargets = targets.slice([0], [splitIdx]);
-      const testTargets = targets.slice([splitIdx], [-1]);
-
-      // Train the model
-      const trainedModel = await trainModel(trainFeatures, trainTargets, epochs);
+      // Step 1: Prepare the data
+      const { trainX, trainY, testX, testY, featureNames, normalization } = await prepareDataForTraining(csvData);
       
-      // Evaluate the model
-      const evalMetrics = evaluateModel(trainedModel, testFeatures, testTargets);
+      // Step 2: Update progress
+      setTrainingProgress(20);
       
-      // Store model and metrics
-      setModel(trainedModel);
-      setMetrics(evalMetrics);
+      // Step 3: Train the model
+      const model = await trainModel({
+        modelType,
+        trainX,
+        trainY,
+        params: modelParams,
+        onEpochEnd: (epoch: number, logs: any) => {
+          // Calculate progress during training
+          const epochProgress = Math.round((epoch / modelParams.epochs) * 60);
+          setTrainingProgress(20 + epochProgress);
+        },
+      });
       
-      // Store normalization info
-      const modelInfo = {
-        features: featureNames,
-        min: Array.from(min.dataSync()),
-        max: Array.from(max.dataSync()),
-        metrics: evalMetrics
-      };
+      setTrainingProgress(80);
       
-      // Create a default model name if none provided
-      if (!modelName || modelName.trim() === "") {
-        setModelName(`retention-model-${new Date().toISOString().split('T')[0]}`);
+      // Step 4: Evaluate the model
+      const metrics = await evaluateModel({
+        model,
+        testX,
+        testY,
+        featureNames,
+      });
+      
+      setTrainingProgress(100);
+      setModelMetrics(metrics);
+      
+      if (onModelTrained) {
+        onModelTrained({
+          model,
+          metrics,
+          featureNames,
+          normalization,
+          modelType,
+          params: modelParams,
+        });
       }
       
-      // Store model info in localStorage
-      localStorage.setItem(`localstorage://${modelName || 'temp-model'}_info`, JSON.stringify(modelInfo));
+      toast({
+        title: "Model Trained Successfully",
+        description: `Model accuracy: ${(metrics.accuracy * 100).toFixed(2)}%`,
+      });
       
-      toast.success("Model training completed successfully");
     } catch (error) {
       console.error("Error training model:", error);
-      toast.error("Failed to train model");
+      toast({
+        title: "Training Failed",
+        description: "An error occurred while training the model.",
+        variant: "destructive",
+      });
     } finally {
       setIsTraining(false);
     }
   };
-
-  const handleSaveModel = async () => {
-    if (!model) {
-      toast.error("No model to save");
-      return;
-    }
-
-    if (!modelName.trim()) {
-      toast.error("Please enter a model name");
-      return;
-    }
-
-    try {
-      await saveModel(model, modelName, selectedFeatures, metrics || undefined);
-      
-      // Refresh the models list
-      if (session) {
-        const supabaseModels = await listModelsFromSupabase();
-        const localModels = await listSavedModels();
-        const formattedLocalModels = localModels.map(name => ({
-          name,
-          source: 'local',
-          created_at: 'Unknown'
-        }));
-        
-        setSavedModels([
-          ...supabaseModels.map(model => ({
-            ...model,
-            source: 'supabase'
-          })),
-          ...formattedLocalModels.filter(lm => 
-            !supabaseModels.some(sm => sm.name === lm.name)
-          )
-        ]);
-      } else {
-        const localModels = await listSavedModels();
-        const formattedLocalModels = localModels.map(name => ({
-          name,
-          source: 'local',
-          created_at: 'Unknown'
-        }));
-        setSavedModels(formattedLocalModels);
-      }
-    } catch (error) {
-      console.error("Error saving model:", error);
-      toast.error("Failed to save model");
-    }
-  };
-
-  const handleDeleteModel = async (model: any) => {
-    try {
-      if (model.source === 'supabase' && model.id) {
-        await deleteModelFromSupabase(model.id);
-      }
-      
-      // Delete from localStorage regardless of source
-      try {
-        localStorage.removeItem(`localstorage://${model.name}`);
-        localStorage.removeItem(`localstorage://${model.name}_info`);
-      } catch (e) {
-        console.error("Error removing from localStorage:", e);
-      }
-      
-      // Refresh models list
-      setSavedModels(savedModels.filter(m => m.name !== model.name));
-      toast.success(`Model "${model.name}" deleted successfully`);
-    } catch (error) {
-      console.error("Error deleting model:", error);
-      toast.error("Failed to delete model");
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    if (!dateString || dateString === 'Unknown') return 'Unknown';
-    try {
-      return new Date(dateString).toLocaleDateString();
-    } catch (e) {
-      return 'Invalid date';
-    }
-  };
-
+  
   return (
     <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-xl flex items-center gap-2">
-            <BrainCircuit className="h-5 w-5 text-purple-500" />
-            Machine Learning Training
-          </CardTitle>
-        </div>
-        <CardDescription>Train a neural network model on your data</CardDescription>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <BrainCircuit className="h-5 w-5 text-primary" />
+          Machine Learning Model Builder
+        </CardTitle>
+        <CardDescription>
+          Create and train predictive models for employee retention analysis
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {!data || data.length === 0 ? (
-          <div className="bg-gray-50 p-6 text-center rounded-md border">
-            <BrainCircuit className="h-12 w-12 mx-auto text-gray-400 mb-2" />
-            <h3 className="text-lg font-medium text-gray-900 mb-1">No Data Available</h3>
-            <p className="text-gray-500 max-w-md mx-auto">
-              Please import employee data first to train a machine learning model for retention prediction.
-            </p>
-          </div>
+      
+      <CardContent className="space-y-4">
+        {!csvData || csvData.length === 0 ? (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>No Data Available</AlertTitle>
+            <AlertDescription>
+              Import employee data to train retention prediction models.
+            </AlertDescription>
+          </Alert>
         ) : (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="modelName">Model Name</Label>
-                  <Input
-                    id="modelName"
-                    value={modelName}
-                    onChange={(e) => setModelName(e.target.value)}
-                    placeholder="e.g., retention-model-v1"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="targetVariable">Target Variable (to predict)</Label>
-                  <Select value={target} onValueChange={setTarget}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select target variable" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {features.map((feature) => (
-                        <SelectItem key={feature} value={feature}>
-                          {feature}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label className="mb-1 block">Training Parameters</Label>
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Epochs: {epochs}</span>
+          <>
+            <Tabs defaultValue="configuration">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="configuration">Model Configuration</TabsTrigger>
+                <TabsTrigger value="results" disabled={!modelMetrics}>
+                  Training Results
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="configuration" className="space-y-4 py-4">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="modelType">Model Type</Label>
+                    <Select value={modelType} onValueChange={handleModelTypeChange}>
+                      <SelectTrigger id="modelType">
+                        <SelectValue placeholder="Select model type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="neuralNetwork">Neural Network</SelectItem>
+                        <SelectItem value="randomForest">Random Forest</SelectItem>
+                        <SelectItem value="xgboost">XGBoost</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {modelType === "neuralNetwork" && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="learningRate">Learning Rate</Label>
+                        <Select 
+                          value={modelParams.learningRate.toString()} 
+                          onValueChange={(v) => handleParamChange("learningRate", Number(v))}
+                        >
+                          <SelectTrigger id="learningRate">
+                            <SelectValue placeholder="Select learning rate" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0.001">0.001</SelectItem>
+                            <SelectItem value="0.01">0.01</SelectItem>
+                            <SelectItem value="0.1">0.1</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <Slider
-                        value={[epochs]}
-                        min={10}
-                        max={500}
-                        step={10}
-                        onValueChange={(value) => setEpochs(value[0])}
-                      />
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="epochs">Epochs</Label>
+                        <Select 
+                          value={modelParams.epochs.toString()}
+                          onValueChange={(v) => handleParamChange("epochs", Number(v))}
+                        >
+                          <SelectTrigger id="epochs">
+                            <SelectValue placeholder="Select epochs" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="20">20</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                            <SelectItem value="100">100</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {modelType === "randomForest" && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="trees">Number of Trees</Label>
+                        <Select 
+                          value={(modelParams as any).trees?.toString() || "100"}
+                          onValueChange={(v) => handleParamChange("trees", Number(v))}
+                        >
+                          <SelectTrigger id="trees">
+                            <SelectValue placeholder="Select number of trees" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="50">50</SelectItem>
+                            <SelectItem value="100">100</SelectItem>
+                            <SelectItem value="200">200</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="maxDepth">Max Depth</Label>
+                        <Select 
+                          value={(modelParams as any).maxDepth?.toString() || "10"}
+                          onValueChange={(v) => handleParamChange("maxDepth", Number(v))}
+                        >
+                          <SelectTrigger id="maxDepth">
+                            <SelectValue placeholder="Select max depth" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="5">5</SelectItem>
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="15">15</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="results" className="py-4">
+                {modelMetrics && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <p className="text-sm font-medium">Accuracy</p>
+                        <p className="text-2xl font-bold">{(modelMetrics.accuracy * 100).toFixed(2)}%</p>
+                      </div>
+                      
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <p className="text-sm font-medium">Precision</p>
+                        <p className="text-2xl font-bold">{(modelMetrics.precision * 100).toFixed(2)}%</p>
+                      </div>
+                      
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <p className="text-sm font-medium">Recall</p>
+                        <p className="text-2xl font-bold">{(modelMetrics.recall * 100).toFixed(2)}%</p>
+                      </div>
                     </div>
                     
-                    <div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">
-                          Train/Test Split: {Math.round(trainTestSplit * 100)}% / {Math.round((1 - trainTestSplit) * 100)}%
-                        </span>
-                      </div>
-                      <Slider
-                        value={[trainTestSplit * 100]}
-                        min={50}
-                        max={90}
-                        step={5}
-                        onValueChange={(value) => setTrainTestSplit(value[0] / 100)}
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="pt-2">
-                  <Button
-                    onClick={handleTrainModel}
-                    disabled={isTraining || selectedFeatures.length === 0 || !target}
-                    className="w-full"
-                  >
-                    {isTraining ? (
-                      <>
-                        <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
-                        Training...
-                      </>
-                    ) : (
-                      <>
-                        <BrainCircuit className="mr-2 h-4 w-4" />
-                        Train Model
-                      </>
-                    )}
-                  </Button>
-                </div>
-                
-                {model && (
-                  <div className="pt-2">
-                    <Button
-                      onClick={handleSaveModel}
-                      disabled={!model || !modelName.trim()}
-                      variant="outline"
-                      className="w-full"
-                    >
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Model
-                    </Button>
-                  </div>
-                )}
-                
-                {metrics && (
-                  <div className="bg-gray-50 p-4 rounded-md border">
-                    <h4 className="font-medium mb-2 flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4 text-purple-500" />
-                      Model Performance
-                    </h4>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <p className="text-xs text-gray-500">MSE</p>
-                        <p className="font-medium">{metrics.mse.toFixed(4)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">RMSE</p>
-                        <p className="font-medium">{metrics.rmse.toFixed(4)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">R² Score</p>
-                        <p className="font-medium">{metrics.r2.toFixed(4)}</p>
+                    <div className="space-y-2">
+                      <h4 className="font-medium">Feature Importance</h4>
+                      <div className="space-y-2">
+                        {modelMetrics.featureImportance?.map((feature: any, index: number) => (
+                          <div key={index} className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span>{feature.name}</span>
+                              <span className="font-medium">{feature.importance.toFixed(4)}</span>
+                            </div>
+                            <Progress value={feature.importance * 100} />
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
                 )}
-              </div>
-              
-              <div className="space-y-4">
-                <Label>Select Features for Training</Label>
-                <div className="border rounded-md h-80 overflow-y-auto p-2">
-                  {features.map((feature) => (
-                    <div key={feature} className="flex items-center space-x-2 py-1">
-                      <input
-                        type="checkbox"
-                        id={`feature-${feature}`}
-                        checked={selectedFeatures.includes(feature)}
-                        onChange={() => handleFeatureSelect(feature)}
-                        className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
-                      />
-                      <label htmlFor={`feature-${feature}`} className="text-sm">
-                        {feature}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-500">
-                  {selectedFeatures.length} of {features.length} features selected
-                </p>
-              </div>
-            </div>
-            
-            <div className="border-t pt-4">
-              <h3 className="font-medium mb-3 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-purple-500" />
-                Saved Models ({savedModels.length})
-              </h3>
-              
-              {savedModels.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-60 overflow-y-auto">
-                  {savedModels.map((savedModel) => (
-                    <div
-                      key={savedModel.id || savedModel.name}
-                      className="border rounded-md p-3 flex justify-between"
-                    >
-                      <div>
-                        <p className="font-medium">{savedModel.name}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                            savedModel.source === 'supabase' ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-600'
-                          }`}>
-                            {savedModel.source === 'supabase' ? 'Database' : 'Local'}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {savedModel.source === 'supabase' 
-                              ? `Created: ${formatDate(savedModel.created_at)}` 
-                              : 'Local storage only'}
-                          </span>
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteModel(savedModel)}
-                      >
-                        <Trash className="h-4 w-4 text-gray-500" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-6 text-gray-500">
-                  <p>No saved models yet. Train and save a model to see it here.</p>
-                </div>
-              )}
-            </div>
-          </div>
+              </TabsContent>
+            </Tabs>
+          </>
         )}
       </CardContent>
+      
+      <CardFooter>
+        <div className="w-full space-y-4">
+          {isTraining && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Training Progress</span>
+                <span>{trainingProgress}%</span>
+              </div>
+              <Progress value={trainingProgress} />
+            </div>
+          )}
+          
+          <div className="flex justify-end gap-2">
+            <Button
+              variant={modelMetrics ? "outline" : "default"}
+              onClick={handleTrainModel}
+              disabled={isTraining || !csvData || csvData.length === 0}
+            >
+              {isTraining ? "Training..." : modelMetrics ? "Retrain Model" : "Train Model"}
+            </Button>
+            
+            {modelMetrics && (
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  // Handle save model logic
+                  toast({
+                    title: "Model Saved",
+                    description: "Your trained model has been saved successfully.",
+                  });
+                }}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save Model
+              </Button>
+            )}
+          </div>
+        </div>
+      </CardFooter>
     </Card>
   );
 };

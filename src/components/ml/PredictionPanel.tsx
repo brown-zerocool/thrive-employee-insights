@@ -1,231 +1,223 @@
+
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BrainCircuit, Save, TestTube2 } from "lucide-react";
-import { toast } from "sonner";
-import * as tf from '@tensorflow/tfjs';
-import { loadModel, savePredictionResult } from "@/utils/mlService";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
+import { Info, Activity, BarChart2 } from "lucide-react";
+import { loadModel, listSavedModels } from "@/utils/mlService";
+import * as tf from "@tensorflow/tfjs";
 
 interface PredictionPanelProps {
-  features: string[];
+  onPredictionComplete?: (results: any) => void;
 }
 
-const PredictionPanel = ({ features }: PredictionPanelProps) => {
-  const [selectedModel, setSelectedModel] = useState<string | null>(null);
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
-  const [formValues, setFormValues] = useState<{ [key: string]: string }>({});
-  const [predictionResult, setPredictionResult] = useState<{ value: number; confidence: number; timestamp: string } | null>(null);
-  const [isPredicting, setIsPredicting] = useState<boolean>(false);
+const PredictionPanel: React.FC<PredictionPanelProps> = ({ onPredictionComplete }) => {
+  const [savedModels, setSavedModels] = useState<any[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>("");
+  const [inputValues, setInputValues] = useState<Record<string, number>>({});
+  const [predictionResult, setPredictionResult] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [modelFeatures, setModelFeatures] = useState<string[]>([]);
-
+  
   useEffect(() => {
-    const fetchModels = async () => {
-      try {
-        const models = await (listSavedModels() as any);
-        setAvailableModels(models);
-      } catch (error) {
-        console.error("Error fetching models:", error);
-        toast.error("Failed to load models");
-      }
-    };
-
-    fetchModels();
+    // Load saved models on component mount
+    const models = listSavedModels();
+    setSavedModels(models);
   }, []);
-
-  useEffect(() => {
-    const loadModelFeatures = async () => {
-      if (selectedModel) {
-        try {
-          const loadedModel = await loadModel(selectedModel);
-          setModelFeatures(loadedModel.features);
-        } catch (error) {
-          console.error("Error loading model info:", error);
-          toast.error("Failed to load model info");
-        }
-      }
-    };
-
-    loadModelFeatures();
-  }, [selectedModel]);
-
-  const handleInputChange = (feature: string, value: string) => {
-    setFormValues({ ...formValues, [feature]: value });
-  };
-
-  const handlePredict = async () => {
-    if (!selectedModel || !formValues) {
-      toast.error("Please select a model and enter feature values");
-      return;
-    }
-
-    setIsPredicting(true);
-
-    try {
-      const loadedModel = await loadModel(selectedModel);
-      
-      // Extract feature values in the correct order
-      const featureArray = [];
-      for (const feature of modelFeatures) {
-        featureArray.push(parseFloat(formValues[feature] || "0"));
-      }
-      
-      // Make prediction
-      const inputTensor = tf.tensor2d([featureArray]);
-      
-      // Normalize input using the model's min-max values
-      const minArray = modelFeatures.map(f => loadedModel.min[f] || 0);
-      const maxArray = modelFeatures.map(f => loadedModel.max[f] || 1);
-      
-      const minTensor = tf.tensor1d(minArray);
-      const maxTensor = tf.tensor1d(maxArray);
-      
-      const normalizedInput = inputTensor.sub(minTensor).div(
-        maxTensor.sub(minTensor).add(tf.scalar(1e-6))
-      );
-      
-      // Get prediction
-      const predictionTensor = loadedModel.model.predict(normalizedInput) as tf.Tensor;
-      const predictionValue = predictionTensor.dataSync()[0];
-      
-      // Clean up tensors
-      inputTensor.dispose();
-      normalizedInput.dispose();
-      predictionTensor.dispose();
-      minTensor.dispose();
-      maxTensor.dispose();
-      
-      // Set result
-      setPredictionResult({
-        value: predictionValue,
-        confidence: 0.85, // Placeholder - would need actual confidence calculation
-        timestamp: new Date().toISOString()
-      });
-      
-      toast.success("Prediction completed");
-    } catch (error) {
-      console.error("Error making prediction:", error);
-      toast.error("Failed to make prediction");
-    } finally {
-      setIsPredicting(false);
-    }
-  };
-
-  const handleSavePrediction = async () => {
-    if (!predictionResult || !selectedModel) {
-      toast.error("No prediction to save");
-      return;
-    }
+  
+  const handleModelChange = async (modelName: string) => {
+    setSelectedModel(modelName);
+    setPredictionResult(null);
     
     try {
-      const saved = await savePredictionResult(
-        predictionResult,
-        selectedModel,
-        null // No specific employee ID for generic predictions
-      );
+      // Find the selected model's metadata
+      const modelInfo = savedModels.find(model => model.name === modelName);
       
-      if (saved) {
-        toast.success("Prediction saved successfully");
-      } else {
-        toast.error("Failed to save prediction");
+      if (modelInfo && modelInfo.featureNames) {
+        setModelFeatures(modelInfo.featureNames);
+        
+        // Initialize input values
+        const initialValues: Record<string, number> = {};
+        modelInfo.featureNames.forEach((feature: string) => {
+          initialValues[feature] = 0;
+        });
+        
+        setInputValues(initialValues);
       }
     } catch (error) {
-      console.error("Error saving prediction:", error);
-      toast.error("An error occurred while saving the prediction");
+      console.error("Error loading model metadata:", error);
     }
   };
-
+  
+  const handleInputChange = (feature: string, value: string) => {
+    setInputValues(prev => ({
+      ...prev,
+      [feature]: parseFloat(value) || 0,
+    }));
+  };
+  
+  const handlePredict = async () => {
+    if (!selectedModel) return;
+    
+    setIsLoading(true);
+    
+    try {
+      // Load the selected model
+      const modelData = await loadModel(selectedModel);
+      const { model, normalization, featureNames } = modelData;
+      
+      // Normalize input values based on saved normalization parameters
+      const normalizedInputs = featureNames.map(feature => {
+        const value = inputValues[feature] || 0;
+        
+        // Normalize using min-max scaling
+        const min = normalization.min[feature] || 0;
+        const max = normalization.max[feature] || 1;
+        
+        return (value - min) / (max - min);
+      });
+      
+      // Convert to tensor
+      const inputTensor = tf.tensor2d([normalizedInputs]);
+      
+      // Make prediction
+      const predictions = model.predict(inputTensor) as tf.Tensor;
+      const result = await predictions.data();
+      
+      // Get the prediction value
+      const predictionValue = result[0];
+      setPredictionResult(predictionValue);
+      
+      // Clean up
+      inputTensor.dispose();
+      predictions.dispose();
+      
+      // Call the callback if provided
+      if (onPredictionComplete) {
+        onPredictionComplete({
+          modelName: selectedModel,
+          inputValues,
+          predictionValue,
+          predictionThreshold: 0.5,
+          atRisk: predictionValue >= 0.5,
+        });
+      }
+      
+    } catch (error) {
+      console.error("Error making prediction:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   return (
     <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-xl flex items-center gap-2">
-            <TestTube2 className="h-5 w-5 text-purple-500" />
-            Retention Prediction
-          </CardTitle>
-        </div>
-        <CardDescription>Predict employee retention using trained models</CardDescription>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Activity className="h-5 w-5 text-primary" />
+          Employee Retention Prediction
+        </CardTitle>
+        <CardDescription>
+          Use trained models to predict individual employee retention risk
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="modelSelect">Select Model</Label>
-            <Select onValueChange={setSelectedModel}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a trained model" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableModels.map((model) => (
-                  <SelectItem key={model} value={model}>
-                    {model}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {selectedModel && modelFeatures && (
-            <div className="space-y-4">
-              {modelFeatures.map((feature) => (
-                <div key={feature}>
-                  <Label htmlFor={`feature-${feature}`}>{feature}</Label>
-                  <Input
-                    type="number"
-                    id={`feature-${feature}`}
-                    placeholder={`Enter ${feature} value`}
-                    onChange={(e) => handleInputChange(feature, e.target.value)}
-                  />
-                </div>
-              ))}
+      
+      <CardContent className="space-y-4">
+        {savedModels.length === 0 ? (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>No Models Available</AlertTitle>
+            <AlertDescription>
+              Train and save a model before making predictions.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="modelSelect">Select Model</Label>
+              <Select value={selectedModel} onValueChange={handleModelChange}>
+                <SelectTrigger id="modelSelect">
+                  <SelectValue placeholder="Choose a trained model" />
+                </SelectTrigger>
+                <SelectContent>
+                  {savedModels.map((model) => (
+                    <SelectItem key={model.name} value={model.name}>
+                      {model.name} ({model.modelType})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          )}
-
-          <Button
-            onClick={handlePredict}
-            disabled={isPredicting || !selectedModel}
-            className="w-full"
-          >
-            {isPredicting ? (
+            
+            {selectedModel && (
               <>
-                <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
-                Predicting...
-              </>
-            ) : (
-              <>
-                <BrainCircuit className="mr-2 h-4 w-4" />
-                Predict Retention
+                <div className="space-y-4">
+                  <h4 className="font-medium">Input Employee Data</h4>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    {modelFeatures.map(feature => (
+                      <div key={feature} className="space-y-2">
+                        <Label htmlFor={feature}>{feature}</Label>
+                        <Input
+                          id={feature}
+                          type="number"
+                          value={inputValues[feature] || "0"}
+                          onChange={e => handleInputChange(feature, e.target.value)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <Button 
+                  className="w-full" 
+                  onClick={handlePredict}
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Predicting..." : "Predict Retention Risk"}
+                </Button>
+                
+                {predictionResult !== null && (
+                  <div className="space-y-2 mt-4 p-4 bg-muted rounded-md">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <BarChart2 className="h-4 w-4" />
+                      Prediction Result
+                    </h4>
+                    
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span>Attrition Risk</span>
+                        <span className="font-medium">{(predictionResult * 100).toFixed(2)}%</span>
+                      </div>
+                      <Progress value={predictionResult * 100} />
+                    </div>
+                    
+                    <div className="mt-2">
+                      <span className="text-sm font-medium">Risk Level: </span>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        predictionResult >= 0.7
+                          ? "bg-red-100 text-red-800"
+                          : predictionResult >= 0.4
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-green-100 text-green-800"
+                      }`}>
+                        {predictionResult >= 0.7
+                          ? "High Risk"
+                          : predictionResult >= 0.4
+                          ? "Medium Risk"
+                          : "Low Risk"}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </>
             )}
-          </Button>
-
-          {predictionResult && (
-            <div className="bg-gray-50 p-4 rounded-md border">
-              <h4 className="font-medium mb-2">Prediction Result</h4>
-              <p className="text-sm">
-                Predicted Retention Score: {predictionResult.value.toFixed(4)}
-              </p>
-              <p className="text-xs text-gray-500">
-                Confidence: {predictionResult.confidence.toFixed(2)}
-              </p>
-              <p className="text-xs text-gray-500">
-                Timestamp: {predictionResult.timestamp}
-              </p>
-            </div>
-          )}
-
-          {predictionResult && (
-            <Button
-              onClick={handleSavePrediction}
-              variant="outline"
-              className="w-full"
-            >
-              <Save className="mr-2 h-4 w-4" />
-              Save Prediction
-            </Button>
-          )}
-        </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

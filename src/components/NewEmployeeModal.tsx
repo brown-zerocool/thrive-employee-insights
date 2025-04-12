@@ -1,148 +1,203 @@
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
+import React, { useState } from "react";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogFooter
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 interface NewEmployeeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEmployeeCreated?: (employee: any) => void;
 }
 
-const NewEmployeeModal = ({ open, onOpenChange }: NewEmployeeModalProps) => {
+const NewEmployeeModal: React.FC<NewEmployeeModalProps> = ({ 
+  open, 
+  onOpenChange,
+  onEmployeeCreated 
+}) => {
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
-    name: "",
-    role: "",
+    firstName: "",
+    lastName: "",
+    email: "",
     department: "",
-    email: ""
+    position: "",
+    hireDate: "",
+    manager: ""
   });
-  
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
-  const handleSelectChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      // Here you would normally send the data to your API
+      console.log("Creating new employee:", formData);
+      
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      
+      // Reset form and close
+      setFormData({
+        firstName: "",
+        lastName: "",
+        email: "",
+        department: "",
+        position: "",
+        hireDate: "",
+        manager: ""
+      });
+      
+      if (onEmployeeCreated) {
+        onEmployeeCreated({
+          id: `emp-${Date.now()}`,
+          ...formData,
+          createdAt: new Date().toISOString()
+        });
+      }
+      
+      toast({
+        title: "Employee Added",
+        description: `Successfully added ${formData.firstName} ${formData.lastName} to the system.`,
+      });
+      
       onOpenChange(false);
-      toast.success("Employee added successfully");
-      setFormData({ name: "", role: "", department: "", email: "" });
-    }, 1000);
+    } catch (error) {
+      console.error("Error creating employee:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create new employee. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add New Employee</DialogTitle>
           <DialogDescription>
-            Enter the details of the new employee. Click save when you're done.
+            Add a new employee to your organization. Fill out the form below with the employee's details.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Name
-              </Label>
+        
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="firstName">First Name</Label>
               <Input
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                className="col-span-3"
+                id="firstName"
+                value={formData.firstName}
+                onChange={(e) => handleInputChange("firstName", e.target.value)}
                 required
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
-                Email
-              </Label>
+            
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Last Name</Label>
               <Input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="col-span-3"
+                id="lastName"
+                value={formData.lastName}
+                onChange={(e) => handleInputChange("lastName", e.target.value)}
                 required
               />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="role" className="text-right">
-                Role
-              </Label>
-              <div className="col-span-3">
-                <Select
-                  value={formData.role}
-                  onValueChange={(value) => handleSelectChange("role", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Senior Developer">Senior Developer</SelectItem>
-                    <SelectItem value="Product Manager">Product Manager</SelectItem>
-                    <SelectItem value="UI/UX Designer">UI/UX Designer</SelectItem>
-                    <SelectItem value="Marketing Specialist">Marketing Specialist</SelectItem>
-                    <SelectItem value="Customer Support">Customer Support</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="department" className="text-right">
-                Department
-              </Label>
-              <div className="col-span-3">
-                <Select
-                  value={formData.department}
-                  onValueChange={(value) => handleSelectChange("department", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Engineering">Engineering</SelectItem>
-                    <SelectItem value="Product">Product</SelectItem>
-                    <SelectItem value="Design">Design</SelectItem>
-                    <SelectItem value="Marketing">Marketing</SelectItem>
-                    <SelectItem value="Operations">Operations</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => handleInputChange("email", e.target.value)}
+              required
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="department">Department</Label>
+              <Select 
+                value={formData.department}
+                onValueChange={(value) => handleInputChange("department", value)}
+              >
+                <SelectTrigger id="department">
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="engineering">Engineering</SelectItem>
+                  <SelectItem value="marketing">Marketing</SelectItem>
+                  <SelectItem value="sales">Sales</SelectItem>
+                  <SelectItem value="hr">Human Resources</SelectItem>
+                  <SelectItem value="finance">Finance</SelectItem>
+                  <SelectItem value="operations">Operations</SelectItem>
+                  <SelectItem value="product">Product</SelectItem>
+                  <SelectItem value="customer_support">Customer Support</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="position">Position</Label>
+              <Input
+                id="position"
+                value={formData.position}
+                onChange={(e) => handleInputChange("position", e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="hireDate">Hire Date</Label>
+              <Input
+                id="hireDate"
+                type="date"
+                value={formData.hireDate}
+                onChange={(e) => handleInputChange("hireDate", e.target.value)}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="manager">Manager</Label>
+              <Input
+                id="manager"
+                value={formData.manager}
+                onChange={(e) => handleInputChange("manager", e.target.value)}
+              />
+            </div>
+          </div>
+          
           <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Adding..." : "Add Employee"}
+              {isSubmitting ? "Creating..." : "Add Employee"}
             </Button>
           </DialogFooter>
         </form>

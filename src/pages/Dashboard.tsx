@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -81,6 +80,46 @@ const mockedInsights = {
     },
   ]
 };
+
+// Mock feedback data for AiFeedbackAnalysis
+const mockFeedbacks = [
+  {
+    id: "1",
+    topic: "Work-Life Balance",
+    sentiment: "negative",
+    feedback: "Many employees mentioned they are working long hours and feel burnout.",
+    actionItems: [
+      "Review workload distribution across teams",
+      "Consider implementing flexible work schedule",
+      "Train managers on recognizing burnout signals"
+    ],
+    impactScore: 85
+  },
+  {
+    id: "2",
+    topic: "Compensation",
+    sentiment: "neutral",
+    feedback: "Employees appreciate recent adjustments but still consider compensation below market average.",
+    actionItems: [
+      "Conduct market compensation analysis",
+      "Develop clearer salary progression framework",
+      "Consider non-monetary benefits"
+    ],
+    impactScore: 75
+  },
+  {
+    id: "3",
+    topic: "Career Growth",
+    sentiment: "positive",
+    feedback: "Recent training opportunities and mentorship program have been well received.",
+    actionItems: [
+      "Expand mentorship program to junior employees",
+      "Create individualized development plans",
+      "Establish clear promotion criteria"
+    ],
+    impactScore: 60
+  }
+];
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -181,7 +220,7 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2 space-y-4">
               <PerformanceDashboard />
-              <AiFeedbackAnalysis />
+              <AiFeedbackAnalysis feedbacks={mockFeedbacks} />
             </div>
             <div className="space-y-4">
               <DataInsightsPanel insights={mockedInsights} csvData={csvData} />
